@@ -10,16 +10,26 @@ use App\Http\Controllers\Api\QuestionnaireAssignmentController;
 use App\Http\Controllers\Api\QuestionnaireResponseController;
 use App\Http\Controllers\Api\QuestionnaireScoreController;
 use App\Http\Controllers\Api\AdverseEventController;
+use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\StudyEnrollmentController;
 use App\Http\Controllers\Api\ConsentController;
 use App\Http\Controllers\Api\EligibilityScreeningController;
 use App\Http\Controllers\Api\UserController;
+use Illuminate\Http\Request;
 
+Route::get('/ping', fn() => response()->json(['ok' => true]));
+
+Route::post('/register', [AuthController::class, 'register']);
+Route::post('login', [AuthController::class, 'login']); 
 
 Route::middleware('auth:sanctum')->group(function () {
-// Users (ver su propio perfil y sesiones)
-Route::get('users/me', [UserController::class, 'me']);
-Route::get('users/{user}/vr-sessions', [VrSessionController::class, 'byUser']);
+    Route::post('logout', [AuthController::class, 'logout']);
+    Route::get('/user', function (Request $request) {
+        return $request->user();
+    });
+
+    Route::get('users/me', [UserController::class, 'me']);
+    Route::get('users/{user}/vr-sessions', [VrSessionController::class, 'byUser']);
 
 
 // CRUDs principales
