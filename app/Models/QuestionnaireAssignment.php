@@ -10,6 +10,13 @@ class QuestionnaireAssignment extends Model
 {
     protected $fillable = ['user_id','questionnaire_id','study_id','session_id','context','assigned_at','due_at','completed_at'];
 
+    protected $casts = [
+    'assigned_at'   => 'datetime',
+    'due_at'        => 'datetime',
+    'completed_at'  => 'datetime',
+];
+
+
     public function user(): BelongsTo { return $this->belongsTo(User::class); }
     public function questionnaire(): BelongsTo { return $this->belongsTo(Questionnaire::class); }
     public function study(): BelongsTo { return $this->belongsTo(Study::class); }

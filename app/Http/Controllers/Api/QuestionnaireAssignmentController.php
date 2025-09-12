@@ -1,0 +1,72 @@
+<?php
+
+namespace App\Http\Controllers\Api;
+
+use App\Http\Controllers\Controller;
+use App\Models\QuestionnaireAssignment;
+use Illuminate\Http\Request;
+
+class QuestionnaireAssignmentController extends Controller
+{
+    // GET /api/questionnaire-assignments?user_id=&study_id=&session_id=&status=pending|completed
+    public function index(Request $r)
+    {
+        $q = QuestionnaireAssignment::query()
+            ->with(['user','questionnaire','study','vrSession']);
+
+        if ($r->filled('user_id'))    $q->where('user_id', $r->integer('user_id'));
+        if ($r->filled('study_id'))   $q->where('study_id', $r->integer('study_id'));
+        if ($r->filled('session_id')) $q->where('session_id', $r->integer('session_id'));
+        if ($r->filled('status')) {
+            $status = $r->string('status')->toString();
+            if ($status === 'pending')   $q->whereNull('completed_at');
+            if ($status === 'completed') $q->whereNotNull('completed_at');
+        }
+
+        return $q->paginate(20);
+    }
+
+    // GET /api/questionnaire-assignments/{questionnaire_assignment}
+    public function show(QuestionnaireAssignment $questionnaire_assignment)
+    {
+        return $questionnaire_assignment->load(['questionnaire.items','responses','score']);
+    }
+
+    // POST /api/questionnaire-assignments
+    public function store(Request $r)
+    {
+        $data = $r->validate([
+            'user_id'          => ['required','exists:users,id'],           // si luego quieres usar $r->user()->id, cámbialo a sometimes
+            'questionnaire_id' => ['required','exists:questionnaires,id'],
+            'study_id'         => ['nullable','exists:studies,id'],
+            'session_id'       => ['nullable','exists:vr_sessions,id'],
+            'context'          => ['required','in:baseline,pre,post,followup'],
+            'assigned_at'      => ['required','date'],
+            'due_at'           => ['nullable','date'],
+        ]);
+
+        return QuestionnaireAssignment::create($data);
+    }
+
+    // PUT /api/questionnaire-assignments/{questionnaire_assignment}
+    public function update(Request $r, QuestionnaireAssignment $questionnaire_assignment)
+    {
+        $data = $r->validate(['completed_at' => ['nullable','date']]);
+        $questionnaire_assignment->update($data);
+        return $questionnaire_assignment;
+    }
+
+    // DELETE /api/questionnaire-assignments/{questionnaire_assignment}
+    public function destroy(QuestionnaireAssignment $questionnaire_assignment)
+    {
+        $questionnaire_assignment->delete();
+        return response()->noContent();
+    }
+
+    // POST /api/questionnaire-assignments/{assignment}/complete
+    public function complete(QuestionnaireAssignment $assignment)
+    {
+        $assignment->update(['completed_at' => now()]);
+        return $assignment->fresh('score');
+    }
+}

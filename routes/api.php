@@ -11,12 +11,12 @@ use App\Http\Controllers\Api\VrSessionController;
 use App\Http\Controllers\Api\VitalController;
 use App\Http\Controllers\Api\AdverseEventController;
 use App\Http\Controllers\Api\QuestionnaireController;
-use App\Http\Controllers\Api\QuestionnaireAssignmentController;
 use App\Http\Controllers\Api\QuestionnaireResponseController;
 use App\Http\Controllers\Api\QuestionnaireScoreController;
 use App\Http\Controllers\Api\StudyEnrollmentController;
 use App\Http\Controllers\Api\ConsentController;
 use App\Http\Controllers\Api\EligibilityScreeningController;
+use App\Http\Controllers\Api\QuestionnaireAssignmentController;
 
 // 👇 NUEVOS
 use App\Http\Controllers\Api\EnvironmentController;

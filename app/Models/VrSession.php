@@ -15,6 +15,13 @@ class VrSession extends Model
     'total_duration_minutes','vr_app_version','notes'
   ];
 
+  protected $casts = [
+    'scheduled_at' => 'datetime',
+    'started_at'   => 'datetime',
+    'ended_at'     => 'datetime',
+];
+
+
   public function segments(){ return $this->hasMany(VrSessionSegment::class)->orderBy('sort_order'); }
   public function environments(){ return $this->belongsToMany(Environment::class, 'vr_session_segments'); }
 

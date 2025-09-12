@@ -26,6 +26,7 @@ class DatabaseSeeder extends Seeder
             DeviceSeeder::class,
             UserSeeder::class,
             VrSessionSeeder::class,
+            QuestionnaireSeeder::class,
         ]);
     }
 }
