@@ -12,12 +12,17 @@ class UserSeeder extends Seeder
     {
         User::updateOrCreate(
             ['email' => 'demo@serenityvr.test'],
-            ['name' => 'Demo', 'password' => Hash::make('secret123')]
+            ['name' => 'Demo', 'password' => Hash::make('secret123'), 'is_admin' => false]
         );
 
         User::updateOrCreate(
             ['email' => 'paciente@serenityvr.test'],
-            ['name' => 'Paciente', 'password' => Hash::make('secret123')]
+            ['name' => 'Paciente', 'password' => Hash::make('secret123'), 'is_admin' => false]
+        );
+
+        User::updateOrCreate(
+            ['email' => 'admin@serenityvr.test'],
+            ['name' => 'Admin', 'password' => 'secret123', 'is_admin' => true]
         );
     }
 }
