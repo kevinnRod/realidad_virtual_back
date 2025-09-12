@@ -10,9 +10,13 @@ class VrSession extends Model
 {
     protected $table = 'vr_sessions';
     protected $fillable = [
-        'user_id','study_id','device_id','session_no','scheduled_at',
-        'started_at','ended_at','duration_sec','environment','vr_app_version','notes'
-    ];
+    'user_id','study_id','device_id','session_no',
+    'scheduled_at','started_at','ended_at',
+    'total_duration_minutes','vr_app_version','notes'
+  ];
+
+  public function segments(){ return $this->hasMany(VrSessionSegment::class)->orderBy('sort_order'); }
+  public function environments(){ return $this->belongsToMany(Environment::class, 'vr_session_segments'); }
 
     public function user(): BelongsTo { return $this->belongsTo(User::class); }
     public function study(): BelongsTo { return $this->belongsTo(Study::class); }
