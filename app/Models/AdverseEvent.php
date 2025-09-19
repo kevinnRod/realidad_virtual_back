@@ -7,8 +7,14 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class AdverseEvent extends Model
 {
-    protected $fillable = ['user_id','session_id','type','severity','related_to_vr','action_taken','resolved_at','notes'];
+    protected $fillable = [
+        'user_id','session_id','type','severity','related_to_vr',
+        'action_taken','notes','occurred_at','resolved_at'
+    ];
 
-    public function user(): BelongsTo { return $this->belongsTo(User::class); }
-    public function vrSession(): BelongsTo { return $this->belongsTo(VrSession::class, 'session_id'); }
+    protected $casts = [
+        'related_to_vr' => 'boolean',
+        'occurred_at'   => 'datetime',
+        'resolved_at'   => 'datetime',
+    ];
 }
