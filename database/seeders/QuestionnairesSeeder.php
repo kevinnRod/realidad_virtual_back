@@ -55,30 +55,32 @@ $csqId = DB::table('questionnaires')->updateOrInsert(
 );
 $csq = DB::table('questionnaires')->where(['code' => 'CSQ-8','version' => 'v1'])->first();
 if ($csq) {
-$items = [
-['Q1','¿Qué tan satisfecho está con la ayuda que recibió?'],
-['Q2','¿Recibió el tipo de ayuda que deseaba?'],
-['Q3','¿En qué medida nuestro programa satisfizo sus necesidades?'],
-['Q4','Si un amigo necesitara ayuda similar, ¿recomendaría nuestro programa?'],
-['Q5','¿Qué tan satisfecho está con la cantidad de ayuda recibida?'],
-['Q6','¿Ha ayudado el programa a lidiar mejor con sus problemas?'],
-['Q7','En general, ¿qué tan satisfecho está con el servicio recibido?'],
-['Q8','¿Volvería a usar este programa si necesitara ayuda nuevamente?'],
-];
-foreach ($items as $i => [$code,$text]) {
-DB::table('questionnaire_items')->updateOrInsert([
-'questionnaire_id' => $csq->id,
-'code' => $code,
-], [
-'text' => $text,
-'sort_order' => $i+1,
-'scale_min' => 1,
-'scale_max' => 4, // CSQ-8 suele ser 4 puntos
-'reverse_scored' => false,
-'updated_at' => now(),
-'created_at' => now(),
-]);
+    $items = [
+        ['Q1','¿Qué tan satisfecho está con la ayuda que recibió?'],
+        ['Q2','¿Recibió el tipo de ayuda que deseaba?'],
+        ['Q3','¿En qué medida nuestro programa satisfizo sus necesidades?'],
+        ['Q4','Si un amigo necesitara ayuda similar, ¿recomendaría nuestro programa?'],
+        ['Q5','¿Qué tan satisfecho está con la cantidad de ayuda recibida?'],
+        ['Q6','¿Ha ayudado el programa a lidiar mejor con sus problemas?'],
+        ['Q7','En general, ¿qué tan satisfecho está con el servicio recibido?'],
+        ['Q8','¿Volvería a usar este programa si necesitara ayuda nuevamente?'],
+    ];
+
+    foreach ($items as $i => [$code, $text]) {
+        DB::table('questionnaire_items')->updateOrInsert([
+            'questionnaire_id' => $csq->id,
+            'code' => $code,
+        ], [
+            'text' => $text,
+            'sort_order' => $i + 1,
+            'scale_min' => 1,
+            'scale_max' => 5, // ✅ AJUSTADO
+            'reverse_scored' => false,
+            'updated_at' => now(),
+            'created_at' => now(),
+        ]);
+    }
 }
-}
+
 }
 }

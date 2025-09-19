@@ -27,9 +27,14 @@ class QuestionnaireAssignmentController extends Controller
     }
 
     // GET /api/questionnaire-assignments/{questionnaire_assignment}
-    public function show(QuestionnaireAssignment $questionnaire_assignment)
+    public function show(QuestionnaireAssignment $questionnaireAssignment)
     {
-        return $questionnaire_assignment->load(['questionnaire.items','responses','score']);
+        $assignment = $questionnaireAssignment->load([
+            'questionnaire',                         // meta del cuestionario
+            'responses.item'                         // respuestas + ítem (reverse_scored, etc.)
+        ]);
+
+        return response()->json($assignment);
     }
 
     // POST /api/questionnaire-assignments
@@ -65,8 +70,14 @@ class QuestionnaireAssignmentController extends Controller
 
     // POST /api/questionnaire-assignments/{assignment}/complete
     public function complete(QuestionnaireAssignment $assignment)
-    {
-        $assignment->update(['completed_at' => now()]);
-        return $assignment->fresh('score');
+{
+    if (!$assignment->completed_at) {
+        $assignment->completed_at = now();
+        $assignment->save();
     }
+    // Devuelve fresco con respuestas por si el front quiere refrescar
+    return response()->json(
+        $assignment->fresh()->load(['questionnaire','responses.item'])
+    );
+}
 }

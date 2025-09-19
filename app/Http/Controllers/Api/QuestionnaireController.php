@@ -23,8 +23,15 @@ class QuestionnaireController extends Controller
     // GET /api/questionnaires/{questionnaire}/items
     public function items(Questionnaire $questionnaire, Request $r)
     {
-        $q = $questionnaire->items()->orderBy('order'); // ajusta el campo de orden si es otro
-        $perPage = (int)$r->integer('per_page', 50);
-        return $perPage > 0 ? $q->paginate(min($perPage, 200)) : $q->get();
+        $q = $questionnaire->items()
+            ->orderBy('sort_order', 'asc')
+            ->orderBy('id', 'asc'); // fallback por si algún item no tiene sort_order
+
+        $perPage = (int) $r->integer('per_page', 50);
+
+        return $perPage > 0
+            ? $q->paginate(min($perPage, 200))
+            : $q->get();
     }
+
 }

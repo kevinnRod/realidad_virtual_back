@@ -48,8 +48,9 @@ public function index(Request $r)
         });
     }
 
-    $base->orderByRaw('COALESCE(vr_sessions.started_at, vr_sessions.scheduled_at, vr_sessions.created_at) DESC');
-
+    $base->orderByRaw(
+        'COALESCE(vr_sessions.started_at, vr_sessions.scheduled_at, vr_sessions.created_at) DESC, vr_sessions.id DESC'
+    );
     return $base->paginate(20);
 }
 
