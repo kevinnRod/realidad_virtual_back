@@ -33,6 +33,8 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::get('users/me', [UserController::class, 'me']);
     Route::get('users/{user}/vr-sessions', [VrSessionController::class, 'byUser']);
+    Route::get('/vr-sessions/next-number', [VrSessionController::class, 'nextNumber']);
+
 
     // CRUDs principales
     Route::apiResource('studies', StudyController::class);
@@ -62,6 +64,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::apiResource('environments', EnvironmentController::class)->only(['index','show']);
 
     // Session segments
+
     Route::get   ('vr-sessions/{session}/segments',                   [VrSessionSegmentController::class, 'index']);
     Route::post  ('vr-sessions/{session}/segments',                   [VrSessionSegmentController::class, 'store']);
     Route::put   ('vr-sessions/{session}/segments/{segment}',         [VrSessionSegmentController::class, 'update']);
