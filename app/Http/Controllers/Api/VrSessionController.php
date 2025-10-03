@@ -257,9 +257,13 @@ public function countToday()
     $user = Auth::user();
     if (!$user) return response()->json(['error' => 'Unauthorized'], 401);
 
-    $count = VrSession::whereDate('created_at', today())->count();
+    $count = VrSession::where('user_id', $user->id)
+        ->whereDate('created_at', today())
+        ->count();
+
     return response()->json(['count' => $count]);
 }
+
 
 
 public function lastWeekSessions(Request $request) {
