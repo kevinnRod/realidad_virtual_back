@@ -27,6 +27,7 @@ class DatabaseSeeder extends Seeder
             UserSeeder::class,
             VrSessionSeeder::class,
             QuestionnaireSeeder::class,
+            QuestionnaireAssignmentSeeder::class,
         ]);
     }
 }

@@ -68,16 +68,55 @@ class QuestionnaireAssignmentController extends Controller
         return response()->noContent();
     }
 
-    // POST /api/questionnaire-assignments/{assignment}/complete
-    public function complete(QuestionnaireAssignment $assignment)
+public function complete(QuestionnaireAssignment $assignment)
 {
     if (!$assignment->completed_at) {
         $assignment->completed_at = now();
         $assignment->save();
     }
-    // Devuelve fresco con respuestas por si el front quiere refrescar
-    return response()->json(
-        $assignment->fresh()->load(['questionnaire','responses.item'])
-    );
+
+    // si no hay score guardado, crearlo
+    if (!$assignment->score()->exists()) {
+        $responses = $assignment->responses()->with('item')->get();
+        $total = 0;
+        foreach ($responses as $response) {
+            $val = (int) $response->value;
+            if ($response->item->reverse_scored ?? false) {
+                $val = 6 - $val;
+            }
+            $total += $val;
+        }
+
+        $assignment->score()->create([
+            'score_total' => $total,
+            'score_json'  => ['raw' => $total]
+        ]);
+    }
+
+    return response()->json($assignment->fresh()->load(['questionnaire','responses.item','score']));
 }
+
+
+// QuestionnaireAssignmentController.php
+public function lastWeekScores(Request $request)
+{
+    $user = $request->user();
+    $since = now()->subDays(7)->startOfDay();
+
+    $assignments = QuestionnaireAssignment::with('score')
+        ->where('user_id', $user->id)
+        ->where('completed_at', '>=', $since)
+        ->get()
+        ->map(function ($assignment) {
+            return [
+                'id'      => $assignment->id,
+                'score'   => $assignment->score?->score_total ? (float) $assignment->score->score_total : null,
+                'context' => $assignment->context,
+            ];
+        });
+
+    return response()->json($assignments);
+}
+
+
 }

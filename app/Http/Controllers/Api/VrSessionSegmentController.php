@@ -159,4 +159,26 @@ class VrSessionSegmentController extends Controller
             return response()->json(['ok' => true]);
         });
     }
+
+    // VrSessionSegmentController.php
+
+
+public function durationByEnvironment(Request $request)
+{
+    $userId = $request->user()->id;
+    $since = now()->subDays(6)->startOfDay();
+
+    $durations = DB::table('vr_session_segments AS seg')
+        ->join('vr_sessions AS ses', 'seg.vr_session_id', '=', 'ses.id')
+        ->join('environments AS env', 'seg.environment_id', '=', 'env.id')
+        ->where('ses.user_id', $userId)
+        ->where('ses.created_at', '>=', $since)
+        ->select('env.name', DB::raw('SUM(seg.duration_minutes) AS total_minutes'))
+        ->groupBy('env.name')
+        ->orderByDesc('total_minutes')
+        ->get();
+
+    return response()->json($durations);
+}
+
 }

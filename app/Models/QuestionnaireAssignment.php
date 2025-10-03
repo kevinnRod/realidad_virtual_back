@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class QuestionnaireAssignment extends Model
 {
@@ -23,5 +24,8 @@ class QuestionnaireAssignment extends Model
     public function vrSession(): BelongsTo { return $this->belongsTo(VrSession::class, 'session_id'); }
 
     public function responses(): HasMany { return $this->hasMany(QuestionnaireResponse::class, 'assignment_id'); }
-    public function score(): HasMany { return $this->hasMany(QuestionnaireScore::class, 'assignment_id'); }
+    public function score(): HasOne
+    {
+        return $this->hasOne(QuestionnaireScore::class, 'assignment_id');
+    }
 }

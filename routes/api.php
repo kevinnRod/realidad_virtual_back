@@ -36,6 +36,14 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/vr-sessions/next-number', [VrSessionController::class, 'nextNumber']);
 
 
+    Route::get('vr-sessions/today-count', [VrSessionController::class, 'countToday']);
+    Route::get('vr-sessions/last-week', [VrSessionController::class, 'lastWeekSessions']);
+    Route::get('vr-sessions/environment-durations', [VrSessionSegmentController::class, 'durationByEnvironment']);
+    Route::get('questionnaire-assignments/last-week-scores', [QuestionnaireAssignmentController::class, 'lastWeekScores']);
+
+
+    // routes/api.php
+    Route::get('vitals/avg-heart-rate', [VitalController::class, 'avgHeartRate']);
     // CRUDs principales
     Route::apiResource('studies', StudyController::class);
     Route::apiResource('devices', DeviceController::class);
@@ -73,4 +81,6 @@ Route::middleware('auth:sanctum')->group(function () {
     // (Opcional) permitidos y protocolo por estudio (si tienes esos métodos)
     Route::get('studies/{study}/environments', [StudyController::class, 'environments']);
     Route::get('studies/{study}/protocol',     [StudyController::class, 'protocol']);
+
+
 });

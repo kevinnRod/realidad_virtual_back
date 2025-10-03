@@ -38,4 +38,16 @@ public function store(Request $r)
 
 
 public function destroy(Vital $vital) { $vital->delete(); return response()->noContent(); }
+
+    // VitalController.php
+
+public function avgHeartRate(Request $request)
+{
+    $avg = $request->user()->vitals()
+        ->whereNotNull('heart_rate')
+        ->avg('heart_rate');
+
+    return response()->json(['avg' => round($avg, 1)]);
+}
+
 }

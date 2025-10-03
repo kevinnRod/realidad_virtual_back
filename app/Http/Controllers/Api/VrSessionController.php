@@ -9,6 +9,7 @@ use App\Models\QuestionnaireAssignment;
 use App\Models\VrSession;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
@@ -249,4 +250,31 @@ public function destroy(VrSession $vr_session) { $vr_session->delete(); return r
 public function byUser(User $user) {
 return VrSession::where('user_id',$user->id)->with(['study','device'])->orderBy('session_no')->get();
 }
+
+    // VrSessionController.php
+public function countToday()
+{
+    $user = Auth::user();
+    if (!$user) return response()->json(['error' => 'Unauthorized'], 401);
+
+    $count = VrSession::whereDate('created_at', today())->count();
+    return response()->json(['count' => $count]);
 }
+
+
+public function lastWeekSessions(Request $request) {
+    $user = $request->user();
+    $since = now()->subDays(6)->startOfDay();
+
+    $sessions = VrSession::where('user_id', $user->id)
+        ->where('created_at', '>=', $since)
+        ->with(['segments.environment'])
+        ->get();
+
+    return response()->json($sessions);
+}
+
+
+}
+
+

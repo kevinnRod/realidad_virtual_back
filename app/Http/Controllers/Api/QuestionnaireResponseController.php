@@ -29,30 +29,7 @@ public function store(Request $r)
     $assignment = QuestionnaireAssignment::with('questionnaire')
         ->findOrFail($data['assignment_id']);
 
-    // (Opcional) Validación de rango por ítem
-    // Descomenta si quieres rechazar respuestas fuera de escala.
-    /*
-    $itemIds = collect($data['responses'])->pluck('item_id')->unique()->all();
-    $items = QuestionnaireItem::whereIn('id', $itemIds)
-        ->get(['id','scale_min','scale_max'])
-        ->keyBy('id');
-
-    foreach ($data['responses'] as $idx => $res) {
-        $it = $items[$res['item_id']] ?? null;
-        if ($it) {
-            $v = $res['value'];
-            if ($v < ($it->scale_min ?? 0) || $v > ($it->scale_max ?? 4)) {
-                return response()->json([
-                    'message' => "Respuesta fuera de rango para item {$res['item_id']}",
-                    'errors'  => ["responses.$idx.value" => ["El valor debe estar entre {$it->scale_min} y {$it->scale_max}."]]
-                ], 422);
-            }
-        }
-    }
-    */
-
     DB::transaction(function () use ($data, $assignment) {
-        // UPSERT masivo (más eficiente)
         $now  = now();
         $rows = collect($data['responses'])->map(function ($res) use ($data, $now) {
             return [
@@ -71,7 +48,7 @@ public function store(Request $r)
             ['value','answered_at','updated_at']
         );
 
-        // 👇 Autocomplete: si ya respondió todos los ítems del cuestionario, marca completed_at
+        // marcar completado si respondió todo
         $totalItems = QuestionnaireItem::where('questionnaire_id', $assignment->questionnaire_id)->count();
         $answered   = QuestionnaireResponse::where('assignment_id', $assignment->id)->count();
 
@@ -79,10 +56,27 @@ public function store(Request $r)
             $assignment->completed_at = $now;
             $assignment->save();
         }
+
+        // calcular y guardar score si ya está completado y no existe
+        if ($assignment->completed_at && !$assignment->score()->exists()) {
+            $responses = $assignment->responses()->with('item')->get();
+            $total = 0;
+            foreach ($responses as $response) {
+                $val = (int) $response->value;
+                if ($response->item->reverse_scored ?? false) {
+                    $val = 6 - $val;
+                }
+                $total += $val;
+            }
+
+            $assignment->score()->create([
+                'score_total' => $total,
+                'score_json'  => ['raw' => $total]
+            ]);
+        }
     });
 
-    // Devuelve el assignment fresco con respuestas para que el front pueda precargar
-    $fresh = QuestionnaireAssignment::with(['questionnaire', 'responses.item'])
+    $fresh = QuestionnaireAssignment::with(['questionnaire','responses.item','score'])
         ->find($data['assignment_id']);
 
     return response()->json([
@@ -90,5 +84,6 @@ public function store(Request $r)
         'assignment' => $fresh,
     ]);
 }
+
 
 }
