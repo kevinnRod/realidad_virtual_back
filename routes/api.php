@@ -20,6 +20,7 @@ use App\Http\Controllers\Api\QuestionnaireAssignmentController;
 
 // 👇 NUEVOS
 use App\Http\Controllers\Api\EnvironmentController;
+use App\Http\Controllers\Api\VrAuthController;
 use App\Http\Controllers\Api\VrSessionSegmentController;
 
 // Route::get('/ping', fn() => response()->json(['ok' => true]));
@@ -27,12 +28,26 @@ use App\Http\Controllers\Api\VrSessionSegmentController;
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('login', [AuthController::class, 'login']);
 
+// Login desde RV
+Route::post('vr/login', [VrAuthController::class, 'loginWithCode']);
+
+
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('logout', [AuthController::class, 'logout']);
     Route::get('/user', fn (Request $request) => $request->user());
 
+    Route::apiResource('users', UserController::class)->only(['index', 'store', 'show', 'update', 'destroy']);
+    Route::post('vr/generate-code', [VrAuthController::class, 'generateCode']);
+    Route::get('/vr/code-status', [VrAuthController::class, 'checkCodeStatus']);
+
+
     Route::get('users/me', [UserController::class, 'me']);
-    Route::get('users/{user}/vr-sessions', [VrSessionController::class, 'byUser']);
+    Route::get('users/{user}/vr-sessions', [VrSessionController::class, 'byUser'])->where('user', '[0-9]+');
+    Route::put('/profile', [UserController::class, 'updateProfile']);
+    Route::put('/profile/password', [UserController::class, 'updatePassword']);
+    
+
+    
     Route::get('/vr-sessions/next-number', [VrSessionController::class, 'nextNumber']);
 
 

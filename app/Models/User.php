@@ -9,11 +9,12 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Spatie\Permission\Traits\HasRoles;
 use Laravel\Sanctum\HasApiTokens;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class User extends Authenticatable
 {
     /** @use HasFactory<\Database\Factories\UserFactory> */
-    use HasFactory, HasApiTokens, Notifiable, HasRoles;
+    use HasFactory, HasApiTokens, Notifiable, HasRoles, SoftDeletes;
 
     /**
      * The attributes that are mass assignable.
@@ -24,8 +25,13 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
-        'is_admin' => 'boolean',
+        'is_admin',
+        // NUEVOS CAMPOS
+        'birthdate',
+        'sex',
+        'role',
     ];
+
 
     /**
      * The attributes that should be hidden for serialization.
@@ -47,8 +53,10 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'is_admin' => 'boolean', // ✅ esto convierte automáticamente 0/1 en true/false
         ];
     }
+
 
     public function enrollments(): HasMany { return $this->hasMany(StudyEnrollment::class); }
     public function consents(): HasMany { return $this->hasMany(Consent::class); }
