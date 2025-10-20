@@ -23,21 +23,22 @@ public function index(Request $r)
     $isAdmin = (bool) ($user->is_admin ?? ($user->role ?? null) === 'admin');
 
     $base = VrSession::query()
-        ->with([
-            'study:id,name',
-            'device:id,code',
-            'user:id,name,email,code',
-            // traemos sólo el primer segmento y su environment
-            'segments' => function ($q) {
-                $q->orderBy('sort_order')->limit(1)
-                  ->with(['environment:id,name']);
-            },
-        ])
-        ->select([
-            'id','user_id','study_id','device_id',
-            'session_no','scheduled_at','started_at','ended_at','created_at',
-            'total_duration_minutes',
-        ]);
+    ->with([
+        'study:id,name',
+        'device:id,code',
+        'user:id,name,email,code',
+        'segments' => function ($q) {
+            $q->orderBy('sort_order')->limit(1)
+              ->with(['environment:id,name']);
+        },
+    ])
+    ->select([
+        'id','user_id','study_id','device_id',
+        'session_no','scheduled_at','started_at','ended_at','created_at',
+        'total_duration_minutes',
+        'type',
+    ]);
+
 
     if (!$isAdmin) {
         $base->where('user_id', $user->id);
@@ -56,7 +57,17 @@ public function index(Request $r)
 }
 
 
-public function show(VrSession $vr_session) { return $vr_session->load(['user','study','device','vitals','adverseEvents']); }
+public function show(VrSession $vr_session)
+{
+    return $vr_session->load([
+        'user',
+        'study',
+        'device',
+        'vitals',
+        'adverseEvents',
+        'segments.environment',
+    ]);
+}
 
 public function nextNumber(Request $r)
 {
@@ -126,12 +137,12 @@ private function ensureDefaultAssignmentsForSession($session): void
 }
 
 
-
 public function store(Request $r)
 {
-    $usesSegments = is_array($r->input('segments'));
+    // 🔽 Identificamos si se usarán segmentos personalizados
+    $usesSegments = $r->input('type') === 'custom' && is_array($r->input('segments'));
 
-    // Reglas base: session_no ahora es OPCIONAL
+    // 🔽 Reglas base
     $baseRules = [
         'study_id'     => ['required', 'exists:studies,id'],
         'device_id'    => ['nullable', 'exists:devices,id'],
@@ -141,10 +152,10 @@ public function store(Request $r)
         'ended_at'     => ['nullable', 'date', 'after_or_equal:started_at'],
         'notes'        => ['nullable', 'string', 'max:1000'],
         'user_id'      => ['sometimes', 'integer', 'exists:users,id'],
-        'type'         => ['required', 'in:default,custom'], // 👈 NUEVO
+        'type'         => ['required', 'in:default,custom'], // 👈 requerido
     ];
 
-    // Validación de sesión única por usuario y estudio
+    // 🔽 Validación de número de sesión único
     if ($r->filled('session_no')) {
         $baseRules['session_no'][] = Rule::unique('vr_sessions', 'session_no')
             ->where(fn($q) => $q
@@ -153,7 +164,7 @@ public function store(Request $r)
             );
     }
 
-    // Reglas para sesiones con segmentos
+    // 🔽 Si se usan segmentos personalizados, agregamos reglas específicas
     $rules = $usesSegments
         ? $baseRules + [
             'segments'                    => ['required', 'array', 'min:1'],
@@ -170,8 +181,10 @@ public function store(Request $r)
             'vr_app_version' => ['nullable', 'string', 'max:40'],
         ];
 
+    // ✅ Validación completa
     $data = $r->validate($rules);
 
+    // 🔽 Seguridad: verificar si el usuario puede crear sesiones para otros
     $currentUserId = $r->user()->id;
     $targetUserId  = $data['user_id'] ?? $currentUserId;
 
@@ -179,26 +192,27 @@ public function store(Request $r)
         abort(403, 'No autorizado para crear sesiones para otros usuarios.');
     }
 
-    // 👇 Lógica para sesiones predeterminadas
+    // ✅ Ya se puede acceder al tipo correctamente
     $type = $data['type'] ?? 'custom';
 
+    // 🔽 Si es default, sobreescribimos los segmentos con la plantilla fija
     if ($type === 'default') {
         $data['segments'] = [
-            ['environment_id' => 1, 'duration_minutes' => 5,   'sort_order' => 1], // Sala Zen
+            ['environment_id' => 1, 'duration_minutes' => 5, 'sort_order' => 1], // Sala Zen
             ['environment_id' => 2, 'duration_minutes' => 3, 'sort_order' => 2], // Playa
             ['environment_id' => 3, 'duration_minutes' => 3, 'sort_order' => 3], // Bosque
         ];
-        $usesSegments = true; // fuerza la lógica de segmentos
+        $usesSegments = true; // Forzamos uso de segmentos
     }
 
-    return DB::transaction(function () use ($data, $usesSegments, $targetUserId) {
+    // 🔽 Creamos la sesión en una transacción segura
+    return DB::transaction(function () use ($data, $usesSegments, $targetUserId, $type) {
         $sessionNo = $data['session_no'] ?? (
             DB::table('vr_sessions')
                 ->where('user_id', $targetUserId)
                 ->where('study_id', $data['study_id'])
                 ->lockForUpdate()
-                ->max('session_no')
-            + 1
+                ->max('session_no') + 1
         );
 
         $payload = [
@@ -210,9 +224,10 @@ public function store(Request $r)
             'started_at'   => $data['started_at'] ?? null,
             'ended_at'     => $data['ended_at'] ?? null,
             'notes'        => $data['notes'] ?? null,
-            'type'         => $data['type'] ?? 'custom', // 👈 se guarda el tipo
+            'type'         => $type,
         ];
 
+        // 🔽 Solo si NO tiene segmentos
         if (!$usesSegments) {
             $payload += [
                 'duration_sec'   => $data['duration_sec'] ?? null,
@@ -223,6 +238,7 @@ public function store(Request $r)
 
         $session = VrSession::create($payload);
 
+        // 🔽 Guardamos los segmentos si aplica
         if ($usesSegments) {
             $total = 0;
             $order = 1;
@@ -250,6 +266,7 @@ public function store(Request $r)
         );
     });
 }
+
 
 
 public function update(Request $r, VrSession $vr_session) {

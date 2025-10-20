@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::table('vr_sessions', function (Blueprint $table) {
             // En la migración:
-            $table->string('type')->default('custom'); // valores: 'default', 'custom'
+            $table->string('type')->nullable(); // valores: 'default', 'custom'
 
         });
     }

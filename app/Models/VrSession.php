@@ -12,7 +12,8 @@ class VrSession extends Model
     protected $fillable = [
     'user_id','study_id','device_id','session_no',
     'scheduled_at','started_at','ended_at',
-    'total_duration_minutes','vr_app_version','notes'
+    'total_duration_minutes','vr_app_version','notes',
+    'type', // valores: 'default', 'custom'
   ];
 
   protected $casts = [

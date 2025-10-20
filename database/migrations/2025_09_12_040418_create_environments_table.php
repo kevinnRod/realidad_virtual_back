@@ -15,6 +15,7 @@ return new class extends Migration {
       $table->string('asset_bundle')->nullable();   // ruta/clave del paquete 3D
       $table->unsignedSmallInteger('recommended_duration_minutes')->default(10);
       $table->boolean('is_active')->default(true);
+      $table->string('image_url')->nullable(); 
       $table->timestamps();
     });
   }
