@@ -282,6 +282,54 @@ public function lastWeekSessions(Request $request) {
     return response()->json($sessions);
 }
 
+public function startSession(Request $request, $id)
+{
+    $session = VrSession::findOrFail($id);
+
+    if ($request->user()->id !== $session->user_id) {
+        return response()->json(['message' => 'No autorizado'], 403);
+    }
+
+    $session->started_at = now();
+    $session->save();
+
+    return response()->json([
+        'message' => 'Sesión iniciada correctamente',
+        'session_id' => $session->id,
+        'started_at' => $session->started_at,
+    ]);
+}
+
+public function endSession(Request $request, $id)
+{
+    $session = VrSession::findOrFail($id);
+
+    if ($request->user()->id !== $session->user_id) {
+        return response()->json(['message' => 'No autorizado'], 403);
+    }
+
+    $session->ended_at = now();
+
+    if ($session->started_at) {
+        $session->total_duration_minutes = ceil(
+            $session->started_at->diffInSeconds(now()) / 60
+        );
+    }
+
+    // Opcional: permitir guardar nota final o versión
+    $session->notes = $request->input('notes', $session->notes);
+    $session->vr_app_version = $request->input('vr_app_version', $session->vr_app_version);
+
+    $session->save();
+
+    return response()->json([
+        'message' => 'Sesión finalizada correctamente',
+        'session_id' => $session->id,
+        'ended_at' => $session->ended_at,
+        'duration_minutes' => $session->total_duration_minutes,
+    ]);
+}
+
 
 }
 

@@ -104,5 +104,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('studies/{study}/environments', [StudyController::class, 'environments']);
     Route::get('studies/{study}/protocol',     [StudyController::class, 'protocol']);
 
+    // Iniciar y finalizar sesión VR
+    Route::post('/vr-sessions/{session}/start', [VrSessionController::class, 'startSession']);
+    Route::post('/vr-sessions/{session}/end',   [VrSessionController::class, 'endSession']);
 
 });
