@@ -10,6 +10,7 @@ class EnvironmentSeeder extends Seeder
     public function run(): void
     {
         $rows = [
+            ['code' => 'zen',   'name' => 'Sala zen',     'recommended_duration_minutes' => 10, 'is_active' => true],
             ['code' => 'forest',   'name' => 'Bosque',     'recommended_duration_minutes' => 10, 'is_active' => true],
             ['code' => 'beach',    'name' => 'Playa',      'recommended_duration_minutes' => 10, 'is_active' => true],
             ['code' => 'mountain', 'name' => 'Montaña',    'recommended_duration_minutes' => 10, 'is_active' => true],

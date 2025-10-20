@@ -81,37 +81,40 @@ public function nextNumber(Request $r)
 
 private function ensureDefaultAssignmentsForSession($session): void
 {
-    // Busca IDs por código (o por título si no tienes code)
-    $pssId = Questionnaire::where('code','pss10')->value('id')
-         ?? Questionnaire::where('title','like','%PSS%')->value('id');
+    // Buscar los cuestionarios por código
+    $pssId         = Questionnaire::where('code', 'pss10')->value('id');
+    $satVrId       = Questionnaire::where('code', 'satisf')->value('id');
+    $satVideoId    = Questionnaire::where('code', 'satisf_video')->value('id');
 
-    $satId = Questionnaire::where('code','satisf')->value('id')
-         ?? Questionnaire::where('title','like','%Satisf%')->value('id');
-
-    if (!$pssId || !$satId) {
-        // Si falta alguno, no rompas la creación de sesión
-        return;
+    // Verificación mínima: asegúrate de que al menos existen PSS y ambos SAT
+    if (!$pssId || !$satVrId || !$satVideoId) {
+        return; // evita romper si falta alguno
     }
 
     $now        = now();
     $assignedAt = $session->scheduled_at ?? $now;
-    $duePre     = $assignedAt;                     // pre: hasta el inicio
-    $duePost    = ($session->scheduled_at ?? $now)->copy()->addHours(6); // post: ventana 6h (ajusta)
+    $duePre     = $assignedAt;
+    $duePost    = $assignedAt->copy()->addHours(6); // POST con ventana
 
     $combos = [
-        [$pssId,  'pre',  $assignedAt, $duePre],
-        [$pssId,  'post', $assignedAt, $duePost],
-        [$satId,  'pre',  $assignedAt, $duePre],
-        [$satId,  'post', $assignedAt, $duePost],
+        // Cuestionarios PSS
+        [$pssId,       'pre',  $assignedAt, $duePre],
+        [$pssId,       'post', $assignedAt, $duePost],
+        
+        // Cuestionario de satisfacción del video para PRE
+        [$satVideoId,  'pre',  $assignedAt, $duePre],
+
+        // Cuestionario de satisfacción de VR para POST
+        [$satVrId,     'post', $assignedAt, $duePost],
     ];
 
-    foreach ($combos as [$qid,$ctx,$asgn,$due]) {
+    foreach ($combos as [$qid, $ctx, $asgn, $due]) {
         QuestionnaireAssignment::firstOrCreate(
             [
-                'user_id'    => $session->user_id,
-                'questionnaire_id' => $qid,
-                'session_id' => $session->id,
-                'context'    => $ctx, // 'pre' | 'post'
+                'user_id'         => $session->user_id,
+                'questionnaire_id'=> $qid,
+                'session_id'      => $session->id,
+                'context'         => $ctx,
             ],
             [
                 'study_id'   => $session->study_id,
@@ -121,6 +124,7 @@ private function ensureDefaultAssignmentsForSession($session): void
         );
     }
 }
+
 
 
 public function store(Request $r)
