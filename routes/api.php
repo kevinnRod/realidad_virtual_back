@@ -35,13 +35,16 @@ Route::post('vr/login', [VrAuthController::class, 'loginWithCode']);
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('logout', [AuthController::class, 'logout']);
     Route::get('/user', fn (Request $request) => $request->user());
+    Route::get('users/me', [UserController::class, 'me']);
 
-    Route::apiResource('users', UserController::class)->only(['index', 'store', 'show', 'update', 'destroy']);
+
+    Route::middleware('admin')->group(function () {
+            Route::apiResource('users', UserController::class)->only(['index', 'store', 'show', 'update', 'destroy']);
+        });
     Route::post('vr/generate-code', [VrAuthController::class, 'generateCode']);
     Route::get('/vr/code-status', [VrAuthController::class, 'checkCodeStatus']);
 
 
-    Route::get('users/me', [UserController::class, 'me']);
     Route::get('users/{user}/vr-sessions', [VrSessionController::class, 'byUser'])->where('user', '[0-9]+');
     Route::put('/profile', [UserController::class, 'updateProfile']);
     Route::put('/profile/password', [UserController::class, 'updatePassword']);
@@ -77,7 +80,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('questionnaire-assignments/{assignment}/score', [QuestionnaireScoreController::class, 'scoreAndSave']);
 
     // Consentimientos y screening
-    Route::apiResource('consents', ConsentController::class)->only(['index','store','show']);
+    Route::get('/consents', [ConsentController::class, 'index']);
+    Route::get('/consents/check', [ConsentController::class, 'check']);
+    Route::post('/consents', [ConsentController::class, 'store']);
+    Route::get('/consents/{id}', [ConsentController::class, 'show']);
+
     Route::apiResource('eligibility-screenings', EligibilityScreeningController::class)->only(['index','store','show']);
 
     // Enrolamientos

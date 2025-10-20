@@ -11,26 +11,35 @@ use Illuminate\Validation\Rules\Password as PasswordRule; // ✅
 
 class AuthController extends Controller
 {
-    public function register(Request $request)
+// app/Http/Controllers/AuthController.php
+// app/Http/Controllers/AuthController.php
+// app/Http/Controllers/AuthController.php
+public function register(Request $request)
 {
-    $data = $request->validate([
-        'name'     => ['required','string','max:255'],
-        'email'    => ['required','email','max:255','unique:users,email'],
-        'password' => ['required', 'string', PasswordRule::min(6)],
+    $validated = $request->validate([
+        'name' => 'required|string|max:255',
+        'email' => 'required|string|email|max:255|unique:users',
+        'password' => 'required|string|min:8|confirmed',
+        'birthdate' => 'required|date',
+        'sex' => 'required|in:M,F,O',
+        'role' => 'required|string|in:student,patient,researcher,therapist', // ✅ SIN admin
     ]);
 
     $user = User::create([
-        'name'     => $data['name'],
-        'email'    => $data['email'],
-        'password' => $data['password'], // 👈 sin Hash::make
+        'name' => $validated['name'],
+        'email' => $validated['email'],
+        'password' => Hash::make($validated['password']),
+        'birthdate' => $validated['birthdate'],
+        'sex' => $validated['sex'],
+        'role' => $validated['role'],
+        'is_admin' => false, // ✅ Siempre false
     ]);
 
-    $token = $user->createToken('mobile')->plainTextToken;
+    $token = $user->createToken('auth_token')->plainTextToken;
 
     return response()->json([
-        'message' => 'Usuario creado',
-        'token'   => $token,
-        'user'    => $user,
+        'token' => $token,
+        'user' => $user
     ], 201);
 }
 
@@ -50,6 +59,8 @@ class AuthController extends Controller
         $token = $user->createToken('mobile')->plainTextToken;
         return response()->json(['token' => $token, 'user' => $user]);
     }
+
+
 
     public function logout(Request $r)
     {

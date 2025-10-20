@@ -40,12 +40,16 @@ class UserController extends Controller
     }
 
 
-    public function store(Request $request) {
+    public function store(Request $request)
+    {
         try {
             $validated = $request->validate([
                 'name'      => 'required|string|max:191',
                 'email'     => 'required|email|unique:users',
-                'password'  => 'required|string|min:6',
+                'password'  => 'required|string|min:8',
+                'birthdate' => 'required|date',
+                'sex'       => 'required|in:M,F,O',
+                'role'      => 'required|string|in:student,patient,researcher,therapist,admin',
                 'is_admin'  => 'boolean'
             ]);
 
@@ -80,15 +84,19 @@ class UserController extends Controller
         }
     }
 
-    public function update(Request $request, $id) {
+    public function update(Request $request, $id)
+    {
         try {
             $user = User::findOrFail($id);
 
             $validated = $request->validate([
                 'name'      => 'sometimes|string|max:191',
                 'email'     => 'sometimes|email|unique:users,email,' . $id,
-                'password'  => 'sometimes|string|min:6',
-                'is_admin'  => 'boolean'
+                'password'  => 'sometimes|string|min:8',
+                'birthdate' => 'sometimes|date',
+                'sex'       => 'sometimes|in:M,F,O',
+                'role'      => 'sometimes|string|in:student,patient,researcher,therapist,admin',
+                'is_admin'  => 'sometimes|boolean'
             ]);
 
             if (isset($validated['password'])) {
