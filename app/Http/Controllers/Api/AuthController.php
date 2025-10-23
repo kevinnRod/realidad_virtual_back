@@ -67,4 +67,29 @@ public function register(Request $request)
         $r->user()->currentAccessToken()?->delete();
         return response()->json(['message' => 'Sesión cerrada']);
     }
+
+    // En app/Http/Controllers/Api/AuthController.php
+
+public function me(Request $request)
+{
+    try {
+        $user = $request->user();
+        
+        if (!$user) {
+            return response()->json([
+                'message' => 'Usuario no encontrado'
+            ], 404);
+        }
+
+        // ✅ SIN relaciones por ahora
+        return response()->json($user);
+        
+    } catch (\Exception $e) {
+        
+        return response()->json([
+            'message' => 'Error al obtener usuario',
+            'error' => $e->getMessage()
+        ], 500);
+    }
+}
 }

@@ -31,11 +31,15 @@ Route::post('login', [AuthController::class, 'login']);
 // Login desde RV
 Route::post('vr/login', [VrAuthController::class, 'loginWithCode']);
 
+// Route::middleware('auth:sanctum')->get('/me', function (Request $request) {
+//     return $request->user()->load(['study', 'organization']); // incluye relaciones si necesitas
+// });
 
 Route::middleware('auth:sanctum')->group(function () {
+    Route::get('/me', [AuthController::class, 'me']);
+
     Route::post('logout', [AuthController::class, 'logout']);
-    Route::get('/user', fn (Request $request) => $request->user());
-    Route::get('users/me', [UserController::class, 'me']);
+    // Route::get('/user', fn (Request $request) => $request->user());
 
 
     Route::middleware('admin')->group(function () {
@@ -48,9 +52,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('users/{user}/vr-sessions', [VrSessionController::class, 'byUser'])->where('user', '[0-9]+');
     Route::put('/profile', [UserController::class, 'updateProfile']);
     Route::put('/profile/password', [UserController::class, 'updatePassword']);
-    
 
-    
+
+
     Route::get('/vr-sessions/next-number', [VrSessionController::class, 'nextNumber']);
 
 

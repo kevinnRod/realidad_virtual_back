@@ -146,20 +146,23 @@ public function destroy($id): JsonResponse
     }
 
     public function updateProfile(Request $request)
-    {
-        $user = auth()->user();
+{
+    $user = auth()->user();
 
-        $request->validate([
-            'name' => 'required|string|max:191',
-            'birthdate' => 'nullable|date',
-            'sex' => 'nullable|in:M,F,O',
-            'role' => 'nullable|in:student,admin',
-        ]);
+    $request->validate([
+        'name' => 'required|string|max:191',
+        'birthdate' => 'nullable|date',
+        'sex' => 'nullable|in:M,F,O',
+        'role' => 'nullable|in:student,admin',
+    ]);
 
-        $user->update($request->only(['name', 'birthdate', 'sex', 'role']));
+    $user->update($request->only(['name', 'birthdate', 'sex', 'role']));
 
-        return response()->json(['message' => 'Perfil actualizado correctamente', 'user' => $user]);
-    }
+    return response()->json([
+        'message' => 'Perfil actualizado correctamente',
+        'data' => $user->fresh()  
+    ]);
+}
 
 
 }
