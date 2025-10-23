@@ -69,6 +69,10 @@ Route::middleware('auth:sanctum')->group(function () {
     // CRUDs principales
     Route::apiResource('studies', StudyController::class);
     Route::apiResource('devices', DeviceController::class);
+
+    //Listar sesiones
+    Route::get('vr-sessions/unity', [VrSessionController::class, 'forUnity']);
+
     Route::apiResource('vr-sessions', VrSessionController::class);
     Route::apiResource('vitals', VitalController::class)->only(['index','store','show','destroy']);
     Route::apiResource('adverse-events', AdverseEventController::class)->only(['index','store','show','destroy']);
@@ -107,6 +111,9 @@ Route::middleware('auth:sanctum')->group(function () {
     // (Opcional) permitidos y protocolo por estudio (si tienes esos métodos)
     Route::get('studies/{study}/environments', [StudyController::class, 'environments']);
     Route::get('studies/{study}/protocol',     [StudyController::class, 'protocol']);
+
+
+
 
     // Iniciar y finalizar sesión VR
     Route::post('/vr-sessions/{session}/start', [VrSessionController::class, 'startSession']);

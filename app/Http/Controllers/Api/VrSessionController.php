@@ -361,6 +361,31 @@ public function endSession(Request $request, $id)
     ]);
 }
 
+public function forUnity(Request $r)
+{
+    $user = $r->user();
+
+    $base = VrSession::query()
+        ->with([
+            'study:id,name',
+            'device:id,code',
+            'user:id,name,email,code',
+            'segments' => function ($q) {
+                $q->orderBy('sort_order')
+                  ->with(['environment:id,name']);
+            },
+        ])
+        ->select([
+            'id','user_id','study_id','device_id',
+            'session_no','scheduled_at','started_at','ended_at','created_at',
+            'total_duration_minutes',
+            'type',
+        ])
+        ->where('user_id', $user->id) // 👈 fuerza solo sus sesiones
+        ->orderByRaw('COALESCE(started_at, scheduled_at, created_at) DESC, id DESC');
+
+    return $base->paginate(20);
+}
 
 }
 
