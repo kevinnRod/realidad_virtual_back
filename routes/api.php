@@ -36,7 +36,9 @@ Route::post('vr/login', [VrAuthController::class, 'loginWithCode']);
 // });
 
 Route::middleware('auth:sanctum')->group(function () {
-    Route::get('/me', [AuthController::class, 'me']);
+    Route::get('/me', [UserController::class, 'me']);
+
+    // Route::get('/me', [AuthController::class, 'me']);
 
     Route::post('logout', [AuthController::class, 'logout']);
     // Route::get('/user', fn (Request $request) => $request->user());

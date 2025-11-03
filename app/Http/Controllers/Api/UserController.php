@@ -14,10 +14,6 @@ use Illuminate\Http\JsonResponse;
 // #[Middleware(IsAdmin::class, only: ['index', 'store', 'update', 'destroy'])]
 class UserController extends Controller
 {
-    public function me(Request $r) {
-        return $r->user()->load(['enrollments.study']);
-    }
-
     public function index(Request $request)
     {
         $query = User::query();
@@ -161,6 +157,22 @@ public function destroy($id): JsonResponse
     return response()->json([
         'message' => 'Perfil actualizado correctamente',
         'data' => $user->fresh()  
+    ]);
+}
+
+    public function me(Request $request)
+{
+    $user = $request->user();
+    
+    // Asegúrate de incluir is_admin en la respuesta
+    return response()->json([
+        'id' => $user->id,
+        'name' => $user->name,
+        'email' => $user->email,
+        'is_admin' => $user->is_admin, 
+        'role' => $user->role,
+        'birthdate' => $user->birthdate,
+        'sex' => $user->sex,
     ]);
 }
 
