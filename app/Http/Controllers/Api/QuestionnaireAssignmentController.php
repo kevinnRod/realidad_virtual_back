@@ -12,7 +12,7 @@ class QuestionnaireAssignmentController extends Controller
     public function index(Request $r)
     {
         $q = QuestionnaireAssignment::query()
-            ->with(['user','questionnaire','study','vrSession']);
+            ->with(['user','questionnaire','study','vrSession', 'score']);
 
         if ($r->filled('user_id'))    $q->where('user_id', $r->integer('user_id'));
         if ($r->filled('study_id'))   $q->where('study_id', $r->integer('study_id'));
