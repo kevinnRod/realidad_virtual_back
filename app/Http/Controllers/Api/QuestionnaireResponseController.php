@@ -61,19 +61,27 @@ public function store(Request $r)
         if ($assignment->completed_at && !$assignment->score()->exists()) {
             $responses = $assignment->responses()->with('item')->get();
             $total = 0;
+            $details = [];
+
             foreach ($responses as $response) {
                 $val = (int) $response->value;
-                if ($response->item->reverse_scored ?? false) {
-                    $val = 6 - $val;
-                }
-                $total += $val;
+                $max = $response->item->scale_max ?? 4;
+
+                // aplica inversión correcta (0–4)
+                $scored = ($response->item->reverse_scored ?? false)
+                    ? ($max - $val)
+                    : $val;
+
+                $total += $scored;
+                $details[$response->item->id] = $scored;
             }
 
             $assignment->score()->create([
                 'score_total' => $total,
-                'score_json'  => ['raw' => $total]
+                'score_json'  => $details
             ]);
         }
+
     });
 
     $fresh = QuestionnaireAssignment::with(['questionnaire','responses.item','score'])
