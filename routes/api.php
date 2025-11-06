@@ -10,6 +10,7 @@ use App\Http\Controllers\Api\DeviceController;
 use App\Http\Controllers\Api\VrSessionController;
 use App\Http\Controllers\Api\VitalController;
 use App\Http\Controllers\Api\AdverseEventController;
+use App\Http\Controllers\Api\AnalyticsController;
 use App\Http\Controllers\Api\QuestionnaireController;
 use App\Http\Controllers\Api\QuestionnaireResponseController;
 use App\Http\Controllers\Api\QuestionnaireScoreController;
@@ -114,11 +115,16 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('studies/{study}/environments', [StudyController::class, 'environments']);
     Route::get('studies/{study}/protocol',     [StudyController::class, 'protocol']);
 
-
-
-
     // Iniciar y finalizar sesión VR
     Route::post('/vr-sessions/{session}/start', [VrSessionController::class, 'startSession']);
     Route::post('/vr-sessions/{session}/end',   [VrSessionController::class, 'endSession']);
 
+    Route::prefix('analytics')->middleware('admin')->group(function () {
+        // HU18: Resumen de resultados
+        Route::get('/summary', [AnalyticsController::class, 'summary']);
+        
+        // HU19: Exportar datos
+        Route::get('/export/csv', [AnalyticsController::class, 'exportCsv']);
+        Route::get('/export/json', [AnalyticsController::class, 'exportJson']);
+    });
 });
