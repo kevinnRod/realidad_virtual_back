@@ -31,6 +31,7 @@ class DatabaseSeeder extends Seeder
             Pss10ResponsesSeeder::class,
             SatisfactionResponsesSeeder::class,
             VitalsSeeder::class,
+            FixSatisfVideoCleanupSeeder::class,
             //  RolesAndPermissionsSeeder::class,
             //  QuestionnaireAssignmentSeeder::class,
             // QuestionnaireAssignmentSeeder::class,
