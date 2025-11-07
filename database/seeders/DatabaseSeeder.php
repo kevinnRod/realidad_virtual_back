@@ -29,6 +29,8 @@ class DatabaseSeeder extends Seeder
             QuestionnaireSeeder::class,
             VrSessionsAndAssignmentsSeeder::class,
             Pss10ResponsesSeeder::class,
+            SatisfactionResponsesSeeder::class,
+            VitalsSeeder::class,
             //  RolesAndPermissionsSeeder::class,
             //  QuestionnaireAssignmentSeeder::class,
             // QuestionnaireAssignmentSeeder::class,
