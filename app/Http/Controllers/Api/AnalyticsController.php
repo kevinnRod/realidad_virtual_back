@@ -14,59 +14,69 @@ class AnalyticsController extends Controller
      * HU18: Resumen de resultados (N, medias, ΔPSS/ΔPAS, %CSAT≥4)
      * GET /api/analytics/summary?start_date=2025-01-01&end_date=2025-12-31&cohort_id=1
      */
-    public function summary(Request $request)
-    {
-        $validated = $request->validate([
-            'start_date' => 'nullable|date',
-            'end_date' => 'nullable|date',
-            'cohort_id' => 'nullable|integer|exists:studies,id',
-        ]);
+    // En AnalyticsController.php, actualizar el método summary():
 
-        $startDate = $validated['start_date'] ?? Carbon::now()->subDays(30)->toDateString();
-        $endDate = $validated['end_date'] ?? Carbon::now()->toDateString();
-        $cohortId = $validated['cohort_id'] ?? null;
+public function summary(Request $request)
+{
+    $validated = $request->validate([
+        'start_date' => 'nullable|date',
+        'end_date' => 'nullable|date',
+        'cohort_id' => 'nullable|integer|exists:studies,id',
+        'study_type' => 'nullable|integer|exists:studies,id', // ✅ NUEVO
+    ]);
 
-        // ─── 1. N Sesiones ───────────────────────────────────
-        $sessionsQuery = DB::table('vr_sessions')
-            ->whereBetween('created_at', [$startDate, $endDate]);
+    $startDate = $validated['start_date'] ?? Carbon::now()->subDays(30)->toDateString();
+    $endDate = $validated['end_date'] ?? Carbon::now()->toDateString();
+    $cohortId = $validated['cohort_id'] ?? null;
+    $studyType = $validated['study_type'] ?? null; // ✅ NUEVO
 
-        if ($cohortId) {
-            $sessionsQuery->whereIn('user_id', function($q) use ($cohortId) {
-                $q->select('user_id')
-                  ->from('study_enrollments')
-                  ->where('study_id', $cohortId);
-            });
-        }
+    // ─── 1. N Sesiones ───────────────────────────────────
+    $sessionsQuery = DB::table('vr_sessions')
+        ->whereBetween('created_at', [$startDate, $endDate]);
 
-        $totalSessions = $sessionsQuery->count();
-
-        // ─── 2. PSS-10 Pre/Post y Δ ─────────────────────────
-        $pssData = $this->calculatePssDeltas($startDate, $endDate, $cohortId);
-
-        // ─── 3. Satisfacción (Video vs VR) ──────────────────
-        $satisfactionData = $this->calculateSatisfactionDeltas($startDate, $endDate, $cohortId);
-
-        // ─── 4. %CSAT ≥ 4 (para VR) ──────────────────────────
-        $csatPercentage = $this->calculateCsatPercentage($startDate, $endDate, $cohortId);
-
-        // ─── 5. Presión Arterial (Systolic/Diastolic) Pre/Post ─
-        $bloodPressureData = $this->calculateBloodPressureDeltas($startDate, $endDate, $cohortId);
-
-        return response()->json([
-            'filters' => [
-                'start_date' => $startDate,
-                'end_date' => $endDate,
-                'cohort_id' => $cohortId,
-            ],
-            'summary' => [
-                'total_sessions' => $totalSessions,
-                'pss' => $pssData,
-                'satisfaction' => $satisfactionData,
-                'csat_percentage' => $csatPercentage,
-                'blood_pressure' => $bloodPressureData,
-            ],
-        ]);
+    if ($cohortId) {
+        $sessionsQuery->whereIn('user_id', function($q) use ($cohortId) {
+            $q->select('user_id')
+              ->from('study_enrollments')
+              ->where('study_id', $cohortId);
+        });
     }
+
+    // ✅ NUEVO: Filtro por tipo de estudio
+    if ($studyType) {
+        $sessionsQuery->where('study_id', $studyType);
+    }
+
+    $totalSessions = $sessionsQuery->count();
+
+    // ─── 2. PSS-10 Pre/Post y Δ ─────────────────────────
+    $pssData = $this->calculatePssDeltas($startDate, $endDate, $cohortId, $studyType); // ✅ Pasar $studyType
+
+    // ─── 3. Satisfacción (Video vs VR) ──────────────────
+    $satisfactionData = $this->calculateSatisfactionDeltas($startDate, $endDate, $cohortId, $studyType); // ✅ Pasar $studyType
+
+    // ─── 4. %CSAT ≥ 4 (para VR) ──────────────────────────
+    $csatPercentage = $this->calculateCsatPercentage($startDate, $endDate, $cohortId, $studyType); // ✅ Pasar $studyType
+
+    // ─── 5. Presión Arterial (Systolic/Diastolic) Pre/Post ─
+    $bloodPressureData = $this->calculateBloodPressureDeltas($startDate, $endDate, $cohortId, $studyType); // ✅ Pasar $studyType
+
+    return response()->json([
+        'filters' => [
+            'start_date' => $startDate,
+            'end_date' => $endDate,
+            'cohort_id' => $cohortId,
+            'study_type' => $studyType, // ✅ NUEVO
+        ],
+        'summary' => [
+            'total_sessions' => $totalSessions,
+            'pss' => $pssData,
+            'satisfaction' => $satisfactionData,
+            'csat_percentage' => $csatPercentage,
+            'blood_pressure' => $bloodPressureData,
+        ],
+    ]);
+}
 
 
     /**
@@ -76,7 +86,7 @@ class AnalyticsController extends Controller
  */
 
 /** Satisfacción (VR vs Video) usando codes: satisf (VR) y satisf_video (Video) */
-private function calculateSatisfactionDeltas($startDate, $endDate, $cohortId)
+private function calculateSatisfactionDeltas($startDate, $endDate, $cohortId, $studyType = null)
 {
     $base = DB::table('questionnaire_scores as qs')
         ->join('questionnaire_assignments as qa', 'qs.assignment_id', '=', 'qa.id')
@@ -89,6 +99,10 @@ private function calculateSatisfactionDeltas($startDate, $endDate, $cohortId)
         $base->whereIn('qa.user_id', function ($q) use ($cohortId) {
             $q->select('user_id')->from('study_enrollments')->where('study_id', $cohortId);
         });
+    }
+
+    if ($studyType) {
+        $base->where('vs.study_id', $studyType);
     }
 
     $vrAvg    = (clone $base)->where('q.code', 'satisf')->avg('qs.score_total');          // VR
@@ -114,7 +128,7 @@ private function calculateSatisfactionDeltas($startDate, $endDate, $cohortId)
 }
 
 /** Presión arterial: intenta (1) cuestionarios BP si existen; si no, (2) tabla de vitales; si no, null */
-private function calculateBloodPressureDeltas($startDate, $endDate, $cohortId)
+private function calculateBloodPressureDeltas($startDate, $endDate, $cohortId, $studyType = null)
 {
     // Si no existe la tabla vitals, mantener el comportamiento anterior
     if (!Schema::hasTable('vitals')) {
@@ -135,6 +149,10 @@ private function calculateBloodPressureDeltas($startDate, $endDate, $cohortId)
         $base->whereIn('s.user_id', function ($q) use ($cohortId) {
             $q->select('user_id')->from('study_enrollments')->where('study_id', $cohortId);
         });
+    }
+
+    if ($studyType) {
+        $base->where('s.study_id', $studyType); // ✅ corregido alias
     }
 
     // (Opcional) sólo mediciones sentadas; si quieres ambas, elimina este where
@@ -370,11 +388,13 @@ private function detectSessionModeColumn(): ?array
 
 
     /** PSS-10 (pre/post/delta) - usa code=pss10 */
-private function calculatePssDeltas($startDate, $endDate, $cohortId)
+// Ejemplo en calculatePssDeltas:
+private function calculatePssDeltas($startDate, $endDate, $cohortId, $studyType = null)
 {
     $query = DB::table('questionnaire_scores as qs')
         ->join('questionnaire_assignments as qa', 'qs.assignment_id', '=', 'qa.id')
         ->join('questionnaires as q', 'qa.questionnaire_id', '=', 'q.id')
+        ->join('vr_sessions as vs', 'qa.session_id', '=', 'vs.id') // ✅ JOIN con vr_sessions
         ->where('q.code', 'pss10')
         ->whereBetween('qa.created_at', [$startDate, $endDate])
         ->whereNotNull('qa.completed_at');
@@ -383,6 +403,11 @@ private function calculatePssDeltas($startDate, $endDate, $cohortId)
         $query->whereIn('qa.user_id', function($q) use ($cohortId) {
             $q->select('user_id')->from('study_enrollments')->where('study_id', $cohortId);
         });
+    }
+
+    // ✅ NUEVO: Filtro por tipo de estudio
+    if ($studyType) {
+        $query->where('vs.study_id', $studyType);
     }
 
     $pre  = (clone $query)->where('qa.context', 'pre')->avg('qs.score_total');
@@ -425,12 +450,13 @@ private function calculatePssDeltas($startDate, $endDate, $cohortId)
         ];
     }
 
-private function calculateCsatPercentage($startDate, $endDate, $cohortId)
+private function calculateCsatPercentage($startDate, $endDate, $cohortId, $studyType = null)
 {
     // Respuestas del cuestionario de satisfacción VR
     $base = DB::table('questionnaire_responses as r')
         ->join('questionnaire_assignments as qa', 'qa.id', '=', 'r.assignment_id')
         ->join('questionnaires as q', 'q.id', '=', 'qa.questionnaire_id')
+        ->join('vr_sessions as vs', 'qa.session_id', '=', 'vs.id')
         ->where('q.code', 'satisf')
         ->whereBetween('qa.created_at', [$startDate, $endDate])
         ->whereNotNull('qa.completed_at');
@@ -440,6 +466,12 @@ private function calculateCsatPercentage($startDate, $endDate, $cohortId)
             $q->select('user_id')->from('study_enrollments')->where('study_id', $cohortId);
         });
     }
+
+    if ($studyType) {
+        $base->where('vs.study_id', $studyType);
+    }
+
+
 
     // Promedio por asignación (agrupamos y alias del agregado)
     $perAssignment = (clone $base)
@@ -488,36 +520,43 @@ private function calculateCsatPercentage($startDate, $endDate, $cohortId)
             
             // Encabezados
             fputcsv($file, [
-                'user_anonymous_id',
-                'session_number',
-                'session_date',
-                'pss_pre',
-                'pss_post',
-                'pss_delta',
-                'pas_pre',
-                'pas_post',
-                'pas_delta',
-                'csat_score',
-                'total_duration_minutes',
-                'timezone'
-            ]);
+    'user_anonymous_id',
+    'session_number',
+    'session_date',
+    'pss_pre',
+    'pss_post',
+    'pss_delta',
+    'bp_sys_pre',
+    'bp_sys_post',
+    'bp_sys_delta',
+    'satisfaction_video',
+    'satisfaction_vr',
+    'satisfaction_delta',
+    'total_duration_minutes',
+    'timezone'
+]);
+
 
             // Datos
             foreach ($data as $row) {
                 fputcsv($file, [
-                    $row['user_anonymous_id'],
-                    $row['session_number'],
-                    $row['session_date'],
-                    $row['pss_pre'],
-                    $row['pss_post'],
-                    $row['pss_delta'],
-                    $row['pas_pre'],
-                    $row['pas_post'],
-                    $row['pas_delta'],
-                    $row['csat_score'],
-                    $row['total_duration_minutes'],
-                    $row['timezone']
-                ]);
+    $row['user_anonymous_id'] ?? null,
+    $row['session_no'] ?? null,             // nombre real del campo en BD
+    $row['session_date'] ?? null,
+    $row['pss_pre'] ?? null,
+    $row['pss_post'] ?? null,
+    $row['pss_delta'] ?? null,
+    $row['bp_sys_pre'] ?? null,
+    $row['bp_sys_post'] ?? null,
+    $row['bp_sys_delta'] ?? null,
+    $row['satisfaction_video'] ?? null,
+    $row['satisfaction_vr'] ?? null,
+    $row['satisfaction_delta'] ?? null,
+    $row['total_duration_minutes'] ?? null,
+    $row['timezone'] ?? null,
+]);
+
+
             }
 
             fclose($file);
@@ -572,81 +611,96 @@ private function calculateCsatPercentage($startDate, $endDate, $cohortId)
      * Obtiene datos para exportación
      */
     private function getExportData(array $filters)
-    {
-        $startDate = $filters['start_date'] ?? Carbon::now()->subDays(30)->toDateString();
-        $endDate = $filters['end_date'] ?? Carbon::now()->toDateString();
-        $cohortId = $filters['cohort_id'] ?? null;
+{
+    $startDate = $filters['start_date'] ?? Carbon::now()->subDays(30)->toDateString();
+    $endDate = $filters['end_date'] ?? Carbon::now()->toDateString();
+    $cohortId = $filters['cohort_id'] ?? null;
+    $studyType = $filters['study_type'] ?? null; // ✅ NUEVO
 
-        $query = DB::table('vr_sessions as vs')
-            ->join('users as u', 'vs.user_id', '=', 'u.id')
-            ->leftJoin('questionnaire_assignments as qa_pss_pre', function($join) {
-                $join->on('vs.id', '=', 'qa_pss_pre.session_id')
-                     ->where('qa_pss_pre.context', 'pre');
-            })
-            ->leftJoin('questionnaire_scores as qs_pss_pre', 'qa_pss_pre.id', '=', 'qs_pss_pre.assignment_id')
-            ->leftJoin('questionnaires as q1', function($join) {
-                $join->on('qa_pss_pre.questionnaire_id', '=', 'q1.id')
-                     ->where('q1.code', 'PSS10');
-            })
-            ->leftJoin('questionnaire_assignments as qa_pss_post', function($join) {
-                $join->on('vs.id', '=', 'qa_pss_post.session_id')
-                     ->where('qa_pss_post.context', 'post');
-            })
-            ->leftJoin('questionnaire_scores as qs_pss_post', 'qa_pss_post.id', '=', 'qs_pss_post.assignment_id')
-            ->leftJoin('questionnaires as q2', function($join) {
-                $join->on('qa_pss_post.questionnaire_id', '=', 'q2.id')
-                     ->where('q2.code', 'PSS10');
-            })
-            ->leftJoin('questionnaire_assignments as qa_pas_pre', function($join) {
-                $join->on('vs.id', '=', 'qa_pas_pre.session_id')
-                     ->where('qa_pas_pre.context', 'pre');
-            })
-            ->leftJoin('questionnaire_scores as qs_pas_pre', 'qa_pas_pre.id', '=', 'qs_pas_pre.assignment_id')
-            ->leftJoin('questionnaires as q3', function($join) {
-                $join->on('qa_pas_pre.questionnaire_id', '=', 'q3.id')
-                     ->where('q3.code', 'PAS');
-            })
-            ->leftJoin('questionnaire_assignments as qa_pas_post', function($join) {
-                $join->on('vs.id', '=', 'qa_pas_post.session_id')
-                     ->where('qa_pas_post.context', 'post');
-            })
-            ->leftJoin('questionnaire_scores as qs_pas_post', 'qa_pas_post.id', '=', 'qs_pas_post.assignment_id')
-            ->leftJoin('questionnaires as q4', function($join) {
-                $join->on('qa_pas_post.questionnaire_id', '=', 'q4.id')
-                     ->where('q4.code', 'PAS');
-            })
-            ->leftJoin('questionnaire_assignments as qa_csat', function($join) {
-                $join->on('vs.id', '=', 'qa_csat.session_id');
-            })
-            ->leftJoin('questionnaire_scores as qs_csat', 'qa_csat.id', '=', 'qs_csat.assignment_id')
-            ->leftJoin('questionnaires as q5', function($join) {
-                $join->on('qa_csat.questionnaire_id', '=', 'q5.id')
-                     ->where('q5.code', 'CSAT');
-            })
-            ->whereBetween('vs.created_at', [$startDate, $endDate])
-            ->select([
-                DB::raw("CONCAT('USER_', LPAD(u.id, 4, '0')) as user_anonymous_id"),
-                'vs.session_number',
-                DB::raw('DATE(vs.created_at) as session_date'),
-                'qs_pss_pre.score_total as pss_pre',
-                'qs_pss_post.score_total as pss_post',
-                DB::raw('(qs_pss_post.score_total - qs_pss_pre.score_total) as pss_delta'),
-                'qs_pas_pre.score_total as pas_pre',
-                'qs_pas_post.score_total as pas_post',
-                DB::raw('(qs_pas_post.score_total - qs_pas_pre.score_total) as pas_delta'),
-                'qs_csat.score_total as csat_score',
-                'vs.total_duration_minutes',
-                DB::raw("'" . config('app.timezone') . "' as timezone")
-            ]);
+    $query = DB::table('vr_sessions as vs')
+        ->join('users as u', 'vs.user_id', '=', 'u.id')
+        ->leftJoin('questionnaire_assignments as qa_pss_pre', function($join) {
+            $join->on('vs.id', '=', 'qa_pss_pre.session_id')
+                 ->where('qa_pss_pre.context', 'pre');
+        })
+        ->leftJoin('questionnaire_scores as qs_pss_pre', 'qa_pss_pre.id', '=', 'qs_pss_pre.assignment_id')
+        ->leftJoin('questionnaires as q1', function($join) {
+            $join->on('qa_pss_pre.questionnaire_id', '=', 'q1.id')
+                 ->where('q1.code', 'pss10');
+        })
+        ->leftJoin('questionnaire_assignments as qa_pss_post', function($join) {
+            $join->on('vs.id', '=', 'qa_pss_post.session_id')
+                 ->where('qa_pss_post.context', 'post');
+        })
+        ->leftJoin('questionnaire_scores as qs_pss_post', 'qa_pss_post.id', '=', 'qs_pss_post.assignment_id')
+        ->leftJoin('questionnaires as q2', function($join) {
+            $join->on('qa_pss_post.questionnaire_id', '=', 'q2.id')
+                 ->where('q2.code', 'pss10');
+        })
+        // Satisfacción Video
+        ->leftJoin('questionnaire_assignments as qa_sat_video', function($join) {
+            $join->on('vs.id', '=', 'qa_sat_video.session_id')
+                 ->where('qa_sat_video.context', 'pre');
+        })
+        ->leftJoin('questionnaire_scores as qs_sat_video', 'qa_sat_video.id', '=', 'qs_sat_video.assignment_id')
+        ->leftJoin('questionnaires as q3', function($join) {
+            $join->on('qa_sat_video.questionnaire_id', '=', 'q3.id')
+                 ->where('q3.code', 'satisf_video');
+        })
+        // Satisfacción VR
+        ->leftJoin('questionnaire_assignments as qa_sat_vr', function($join) {
+            $join->on('vs.id', '=', 'qa_sat_vr.session_id')
+                 ->where('qa_sat_vr.context', 'post');
+        })
+        ->leftJoin('questionnaire_scores as qs_sat_vr', 'qa_sat_vr.id', '=', 'qs_sat_vr.assignment_id')
+        ->leftJoin('questionnaires as q4', function($join) {
+            $join->on('qa_sat_vr.questionnaire_id', '=', 'q4.id')
+                 ->where('q4.code', 'satisf');
+        })
+        // Presión Arterial
+        ->leftJoin('vitals as vt_pre', function($join) {
+            $join->on('vs.id', '=', 'vt_pre.session_id')
+                 ->where('vt_pre.phase', 'pre');
+        })
+        ->leftJoin('vitals as vt_post', function($join) {
+            $join->on('vs.id', '=', 'vt_post.session_id')
+                 ->where('vt_post.phase', 'post');
+        })
+        ->whereBetween('vs.created_at', [$startDate, $endDate])
+        ->select([
+            DB::raw("CONCAT('USER_', LPAD(u.id, 4, '0')) as user_anonymous_id"),
+            'vs.session_no',
+            DB::raw('DATE(vs.created_at) as session_date'),
+            'qs_pss_pre.score_total as pss_pre',
+            'qs_pss_post.score_total as pss_post',
+            DB::raw('(qs_pss_post.score_total - qs_pss_pre.score_total) as pss_delta'),
+            'qs_sat_video.score_total as satisfaction_video',
+            'qs_sat_vr.score_total as satisfaction_vr',
+            DB::raw('(qs_sat_vr.score_total - qs_sat_video.score_total) as satisfaction_delta'),
+            'vt_pre.bp_sys as bp_sys_pre',
+            'vt_pre.bp_dia as bp_dia_pre',
+            'vt_post.bp_sys as bp_sys_post',
+            'vt_post.bp_dia as bp_dia_post',
+            DB::raw('(vt_post.bp_sys - vt_pre.bp_sys) as bp_sys_delta'),
+            DB::raw('(vt_post.bp_dia - vt_pre.bp_dia) as bp_dia_delta'),
+            'vs.total_duration_minutes',
+            DB::raw("'" . config('app.timezone') . "' as timezone")
+        ]);
 
-        if ($cohortId) {
-            $query->whereIn('vs.user_id', function($q) use ($cohortId) {
-                $q->select('user_id')
-                  ->from('study_enrollments')
-                  ->where('study_id', $cohortId);
-            });
-        }
-
-        return $query->get()->toArray();
+    if ($cohortId) {
+        $query->whereIn('vs.user_id', function($q) use ($cohortId) {
+            $q->select('user_id')
+              ->from('study_enrollments')
+              ->where('study_id', $cohortId);
+        });
     }
+
+    // ✅ NUEVO: Filtro por tipo de estudio
+    if ($studyType) {
+        $query->where('vs.study_id', $studyType);
+    }
+
+    return $query->get()->map(fn($row) => (array) $row)->toArray();
+
+}
 }
