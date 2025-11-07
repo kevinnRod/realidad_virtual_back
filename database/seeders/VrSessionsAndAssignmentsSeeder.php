@@ -126,7 +126,7 @@ class VrSessionsAndAssignmentsSeeder extends Seeder
                         'study_id'     => $study->id,
                         'assigned_at'  => $preAt,
                         'due_at'       => null,
-                        'completed_at' => $preAt->copy()->addMinutes(10),
+                        'completed_at' => null,
                     ]
                 );
 
@@ -142,7 +142,7 @@ class VrSessionsAndAssignmentsSeeder extends Seeder
                         'study_id'     => $study->id,
                         'assigned_at'  => $postAt,
                         'due_at'       => null,
-                        'completed_at' => $postAt->copy()->addMinutes(10),
+                        'completed_at' => null,
                     ]
                 );
 
@@ -174,7 +174,7 @@ class VrSessionsAndAssignmentsSeeder extends Seeder
                         'study_id'     => $study->id,
                         'assigned_at'  => $satisfVrAt,
                         'due_at'       => null,
-                        'completed_at' => $satisfVrAt->copy()->addMinutes(8),
+                        'completed_at' => null,
                     ]
                 );
             }
