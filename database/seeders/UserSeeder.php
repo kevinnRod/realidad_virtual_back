@@ -11,10 +11,9 @@ class UserSeeder extends Seeder
 {
     public function run(): void
     {
-        $faker = \Faker\Factory::create('es_ES');
         $passwordHash = Hash::make('password');
 
-        // Usuarios base (todos con "password")
+        // Usuarios base
         User::updateOrCreate(
             ['email' => 'demo@serenityvr.test'],
             ['name' => 'Demo', 'password' => $passwordHash, 'is_admin' => false]
@@ -30,20 +29,57 @@ class UserSeeder extends Seeder
             ['name' => 'Admin', 'password' => $passwordHash, 'is_admin' => true]
         );
 
-        // Helper para email tipo "nombre_i@gmail.com"
-        $buildEmail = function (string $firstName, string $lastName1): string {
-            // inicial del primer apellido
-            $initial = mb_substr($lastName1, 0, 1, 'UTF-8');
+        // Lista estática de 32 nombres (Nombre + 2 apellidos)
+        $names = [
+            'Nicolás Rubio Sánchez',
+            'Laura Paredes Molina',
+            'Diego Castillo Romero',
+            'Marta Ibáñez Alonso',
+            'Jorge Herrera Cano',
+            'Paula Ríos Navarro',
+            'Andrés Gómez Velez',
+            'Silvia Lozano Prieto',
+            'Daniel Cortés Aguilar',
+            'Elena Serrano Muñoz',
+            'Pablo Navas Ortega',
+            'Carmen Ruiz Cabrera',
+            'Alberto Varela Domínguez',
+            'Lucía Campos Esteban',
+            'Sergio Márquez Duarte',
+            'Sofía Medina Salas',
+            'Javier Álvarez Gallego',
+            'Natalia Fuentes Bravo',
+            'Víctor Ponce Aranda',
+            'Irene Cabrera Solís',
+            'Óscar Barrios Palacios',
+            'Valeria Cárdenas León',
+            'Marcos Delgado Pizarro',
+            'Claudia Salinas Pineda',
+            'Manuel Arias Cifuentes',
+            'Alicia Morales Tejada',
+            'Tomás Valverde Quiroga',
+            'Beatriz Carrillo Sáenz',
+            'Rubén Montoya Plaza',
+            'Andrea Núñez Castaño',
+            'Héctor Roldán Sevilla',
+            'Gabriela Benítez Portillo',
+        ];
 
-            // normalizar (quitar acentos / espacios) y a minúsculas
-            $base = Str::lower(
-                Str::of(Str::ascii($firstName))->replace(' ', '')
-            ) . '_' . Str::lower(Str::ascii($initial));
+        // Helper: genera email tipo "nombre_i@gmail.com" (e.g., nicolas_r@gmail.com)
+        $buildEmail = function (string $fullName): string {
+            $parts = preg_split('/\s+/', trim($fullName));
+            // Asumimos formato: Nombre Apellido1 Apellido2
+            $firstName = $parts[0] ?? 'user';
+            $last1     = $parts[1] ?? 'x';
 
+            $firstNameAscii = Str::lower(Str::ascii($firstName));
+            $initialAscii   = Str::lower(Str::ascii(mb_substr($last1, 0, 1, 'UTF-8')));
+
+            $base   = $firstNameAscii . '_' . $initialAscii;
             $domain = '@gmail.com';
-            $email = $base . $domain;
+            $email  = $base . $domain;
 
-            // asegurar unicidad en BD
+            // Asegurar unicidad si ya existe
             $suffix = 2;
             while (User::where('email', $email)->exists()) {
                 $email = $base . $suffix . $domain;
@@ -52,18 +88,13 @@ class UserSeeder extends Seeder
             return $email;
         };
 
-        // 32 usuarios adicionales
-        for ($i = 1; $i <= 32; $i++) {
-            $firstName = $faker->firstName();
-            $last1     = $faker->lastName();
-            $last2     = $faker->lastName();
-            $name      = "{$firstName} {$last1} {$last2}";
-            $email     = $buildEmail($firstName, $last1);
+        foreach ($names as $fullName) {
+            $email = $buildEmail($fullName);
 
             User::updateOrCreate(
                 ['email' => $email],
                 [
-                    'name'     => $name,
+                    'name'     => $fullName,
                     'password' => $passwordHash,
                     'is_admin' => false,
                 ]
