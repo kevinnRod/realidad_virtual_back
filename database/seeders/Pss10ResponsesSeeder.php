@@ -25,25 +25,30 @@ class Pss10ResponsesSeeder extends Seeder
             return;
         }
 
-        // 32 usuarios objetivo (no-admin, @gmail.com)
+        // 32 usuarios objetivo (no-admin con gmail) en el mismo orden usado en los demás seeders
         $users = User::where('is_admin', false)
             ->where('email', 'like', '%@gmail.com')
             ->orderBy('id')
             ->take(32)
             ->get();
 
-        // Items PSS-10 ordenados por sort_order 1..10
+        if ($users->isEmpty()) {
+            $this->command?->warn('No se encontraron usuarios @gmail.com no-admin.');
+            return;
+        }
+
+        // Ítems PSS-10 en orden 1..10 (sort_order)
         $items = QuestionnaireItem::where('questionnaire_id', $qPss->id)
             ->orderBy('sort_order')
             ->get()
             ->values();
 
         if ($items->count() !== 10) {
-            $this->command?->warn("PSS-10 debería tener 10 items; encontrados: {$items->count()}.");
+            $this->command?->warn("PSS-10 debería tener 10 ítems; encontrados: {$items->count()}.");
             return;
         }
 
-        // ===== MATRICES DE RESPUESTAS (P001..P032) =====
+        // ===== MATRICES (P001..P032 x i1..i10) =====
         $pre = [
             [3,4,4,1,0,2,0,3,3,4],[0,4,4,0,0,2,0,1,3,2],[3,1,2,1,1,4,0,1,3,0],
             [3,2,1,3,4,4,0,0,3,3],[1,3,0,3,0,3,0,1,3,2],[4,4,4,3,1,4,0,0,0,2],
@@ -72,23 +77,23 @@ class Pss10ResponsesSeeder extends Seeder
             [0,2,0,1,2,3,2,3,1,0],[1,2,0,3,3,3,3,4,1,1],
         ];
 
-        // Helper: persiste respuestas (upsert) y score como hace tu controlador
+        // Helper: upsert responses, marcar completado si está completo y calcular score
         $saveBlock = function (QuestionnaireAssignment $assignment, array $values) use ($items) {
             $now = now();
+            $assignedAt = $assignment->assigned_at ? Carbon::parse($assignment->assigned_at) : $now;
 
-            // UPsert responses
+            // Upsert responses (assignment_id + item_id)
             $rows = [];
             foreach ($items as $k => $item) {
                 $rows[] = [
                     'assignment_id' => $assignment->id,
                     'item_id'       => $item->id,
                     'value'         => (int)($values[$k] ?? 0),
-                    'answered_at'   => ($assignment->assigned_at ? Carbon::parse($assignment->assigned_at) : $now)->copy()->addMinutes($k),
+                    'answered_at'   => $assignedAt->copy()->addMinutes($k),
                     'created_at'    => $now,
                     'updated_at'    => $now,
                 ];
             }
-
             QuestionnaireResponse::upsert(
                 $rows,
                 ['assignment_id','item_id'],
@@ -99,24 +104,22 @@ class Pss10ResponsesSeeder extends Seeder
             $totalItems = $items->count();
             $answered   = QuestionnaireResponse::where('assignment_id', $assignment->id)->count();
             if ($totalItems > 0 && $answered >= $totalItems && is_null($assignment->completed_at)) {
-                $assignment->completed_at = $now; // o deja el que ya tenga
+                $assignment->completed_at = $assignedAt->copy()->addMinutes(10);
                 $assignment->save();
             }
 
-            // Score (crear/actualizar)
+            // Calcular/update score (reverse_scored y scale_max desde BD)
             $responses = $assignment->responses()->with('item')->get();
             $total = 0;
             $details = [];
             foreach ($responses as $response) {
-                $val = (int)$response->value;
-                $max = $response->item->scale_max ?? 4; // PSS: 0..4
-                $rev = (bool)($response->item->reverse_scored ?? false);
+                $val = (int) $response->value;
+                $max = $response->item->scale_max ?? 4; // PSS-10: 0..4
+                $rev = (bool) ($response->item->reverse_scored ?? false);
                 $scored = $rev ? ($max - $val) : $val;
                 $total += $scored;
                 $details[$response->item->id] = $scored;
             }
-
-            // hasOne ->updateOrCreate() está scoping por assignment_id
             $assignment->score()->updateOrCreate([], [
                 'score_total' => $total,
                 'score_json'  => $details,
@@ -131,7 +134,7 @@ class Pss10ResponsesSeeder extends Seeder
                     ? Carbon::parse($session->scheduled_at)
                     : now();
 
-                // Assignment PRE (asegurar created/assigned/completed)
+                // --- PRE ---
                 $preAssignment = QuestionnaireAssignment::firstOrCreate(
                     [
                         'user_id'          => $user->id,
@@ -147,7 +150,7 @@ class Pss10ResponsesSeeder extends Seeder
                 );
                 $saveBlock($preAssignment, $pre[$idx]);
 
-                // Assignment POST
+                // --- POST ---
                 $postAssignment = QuestionnaireAssignment::firstOrCreate(
                     [
                         'user_id'          => $user->id,
