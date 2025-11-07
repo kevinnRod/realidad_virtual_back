@@ -121,7 +121,7 @@ class QuestionnaireAssignmentSeeder extends Seeder
                         'study_id'     => $study->id,
                         'assigned_at'  => $satisfVrAt,
                         'due_at'       => null,
-                        'completed_at' => $satisfVrAt->copy()->addMinutes(8),
+                        'completed_at' => null,
                     ]
                 );
             }
