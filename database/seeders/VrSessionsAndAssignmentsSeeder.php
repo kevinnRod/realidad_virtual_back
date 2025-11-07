@@ -91,7 +91,7 @@ class VrSessionsAndAssignmentsSeeder extends Seeder
                         'total_duration_minutes' => $totalMinutes,
                         'vr_app_version'         => '1.0.0',
                         'notes'                  => 'Sesión estándar (zen 5m + beach 3m + forest 3m)',
-                        'type'                  => 'default',
+                        'type'                 => 'default',
                     ]
                 );
 
@@ -127,7 +127,7 @@ class VrSessionsAndAssignmentsSeeder extends Seeder
                         'study_id'     => $study->id,
                         'assigned_at'  => $preAt,
                         'due_at'       => null,
-                        'completed_at' => null,
+                        'completed_at' => $preAt->copy()->addMinutes(10),
                     ]
                 );
 
@@ -143,7 +143,7 @@ class VrSessionsAndAssignmentsSeeder extends Seeder
                         'study_id'     => $study->id,
                         'assigned_at'  => $postAt,
                         'due_at'       => null,
-                        'completed_at' => null,
+                        'completed_at' => $preAt->copy()->addMinutes(10),
                     ]
                 );
 
@@ -159,7 +159,7 @@ class VrSessionsAndAssignmentsSeeder extends Seeder
                         'study_id'     => $study->id,
                         'assigned_at'  => $videoAt,
                         'due_at'       => null,
-                        'completed_at' => null, // <-- lo completarás manualmente
+                        'completed_at' => $preAt->copy()->addMinutes(10), // <-- lo completarás manualmente
                     ]
                 );
 
@@ -175,7 +175,7 @@ class VrSessionsAndAssignmentsSeeder extends Seeder
                         'study_id'     => $study->id,
                         'assigned_at'  => $satisfVrAt,
                         'due_at'       => null,
-                        'completed_at' => null,
+                        'completed_at' => $preAt->copy()->addMinutes(10),
                     ]
                 );
             }

@@ -25,18 +25,14 @@ class Pss10ResponsesSeeder extends Seeder
             return;
         }
 
-        // Usuarios objetivo (mismo criterio que los demás seeders)
+        // 32 usuarios objetivo (no-admin, @gmail.com)
         $users = User::where('is_admin', false)
             ->where('email', 'like', '%@gmail.com')
             ->orderBy('id')
             ->take(32)
             ->get();
 
-        if ($users->count() !== 32) {
-            $this->command?->warn("Se esperaban 32 usuarios objetivo, encontrados: {$users->count()}.");
-        }
-
-        // Items PSS-10 en orden 1..10
+        // Items PSS-10 ordenados por sort_order 1..10
         $items = QuestionnaireItem::where('questionnaire_id', $qPss->id)
             ->orderBy('sort_order')
             ->get()
@@ -47,90 +43,95 @@ class Pss10ResponsesSeeder extends Seeder
             return;
         }
 
-        // --------------------------
-        // MATRICES DE RESPUESTAS
-        // Orden: P001..P032 (32 filas), columnas i1..i10
-        // --------------------------
-
+        // ===== MATRICES DE RESPUESTAS (P001..P032) =====
         $pre = [
-            [3,4,4,1,0,2,0,3,3,4],
-            [0,4,4,0,0,2,0,1,3,2],
-            [3,1,2,1,1,4,0,1,3,0],
-            [3,2,1,3,4,4,0,0,3,3],
-            [1,3,0,3,0,3,0,1,3,2],
-            [4,4,4,3,1,4,0,0,0,2],
-            [3,2,4,1,0,3,0,2,1,4],
-            [4,2,0,2,2,4,2,0,3,1],
-            [4,3,2,0,0,2,2,1,4,3],
-            [1,4,4,1,2,3,1,1,0,1],
-            [0,3,2,1,3,2,1,2,2,1],
-            [2,2,4,2,1,4,2,0,4,3],
-            [4,4,2,0,0,3,2,3,0,3],
-            [3,2,1,0,3,2,1,2,3,4],
-            [4,2,3,0,0,0,1,1,1,2],
-            [4,2,1,1,4,2,2,2,2,4],
-            [3,3,3,1,0,4,0,0,0,3],
-            [3,0,3,0,1,2,2,1,4,1],
-            [2,1,4,3,0,3,2,1,3,2],
-            [1,4,4,1,0,2,2,3,4,4],
-            [3,1,2,3,1,0,0,2,0,2],
-            [3,3,3,0,2,2,0,2,3,4],
-            [3,3,1,1,0,2,4,1,4,3],
-            [4,3,3,1,0,4,0,0,3,2],
-            [4,4,4,1,0,4,1,4,4,4],
-            [2,3,4,0,0,3,3,2,3,1],
-            [3,4,1,1,3,4,2,2,3,2],
-            [4,4,4,3,1,3,2,1,4,4],
-            [4,2,3,0,1,0,1,1,2,3],
-            [0,0,4,1,0,3,2,0,3,1],
-            [1,3,3,1,2,4,1,0,4,2],
-            [3,1,0,4,2,3,1,0,2,2],
+            [3,4,4,1,0,2,0,3,3,4],[0,4,4,0,0,2,0,1,3,2],[3,1,2,1,1,4,0,1,3,0],
+            [3,2,1,3,4,4,0,0,3,3],[1,3,0,3,0,3,0,1,3,2],[4,4,4,3,1,4,0,0,0,2],
+            [3,2,4,1,0,3,0,2,1,4],[4,2,0,2,2,4,2,0,3,1],[4,3,2,0,0,2,2,1,4,3],
+            [1,4,4,1,2,3,1,1,0,1],[0,3,2,1,3,2,1,2,2,1],[2,2,4,2,1,4,2,0,4,3],
+            [4,4,2,0,0,3,2,3,0,3],[3,2,1,0,3,2,1,2,3,4],[4,2,3,0,0,0,1,1,1,2],
+            [4,2,1,1,4,2,2,2,2,4],[3,3,3,1,0,4,0,0,0,3],[3,0,3,0,1,2,2,1,4,1],
+            [2,1,4,3,0,3,2,1,3,2],[1,4,4,1,0,2,2,3,4,4],[3,1,2,3,1,0,0,2,0,2],
+            [3,3,3,0,2,2,0,2,3,4],[3,3,1,1,0,2,4,1,4,3],[4,3,3,1,0,4,0,0,3,2],
+            [4,4,4,1,0,4,1,4,4,4],[2,3,4,0,0,3,3,2,3,1],[3,4,1,1,3,4,2,2,3,2],
+            [4,4,4,3,1,3,2,1,4,4],[4,2,3,0,1,0,1,1,2,3],[0,0,4,1,0,3,2,0,3,1],
+            [1,3,3,1,2,4,1,0,4,2],[3,1,0,4,2,3,1,0,2,2],
         ];
 
         $post = [
-            [2,0,0,3,4,1,4,3,1,1],
-            [1,2,1,1,2,2,1,1,1,1],
-            [2,3,2,3,4,1,2,2,0,2],
-            [0,1,1,3,3,1,3,4,3,1],
-            [2,0,1,3,4,0,3,4,1,2],
-            [0,3,2,3,2,1,3,3,3,1],
-            [2,1,2,3,4,0,4,2,0,1],
-            [0,3,2,4,0,1,3,1,0,2],
-            [1,2,1,2,4,3,2,0,1,1],
-            [2,4,1,4,3,2,1,2,0,1],
-            [1,2,0,1,2,2,4,3,3,1],
-            [1,1,0,4,2,1,3,3,0,4],
-            [3,0,0,3,4,4,2,3,3,1],
-            [2,0,2,4,4,0,3,2,1,1],
-            [0,0,3,3,3,2,4,0,2,3],
-            [0,2,0,2,3,0,3,4,2,1],
-            [1,2,1,1,3,3,2,4,2,1],
-            [2,0,3,4,4,0,1,1,1,1],
-            [1,0,0,4,3,3,0,3,3,1],
-            [0,2,1,3,0,2,0,4,1,0],
-            [1,0,2,4,4,1,1,3,2,0],
-            [2,1,1,4,3,1,1,2,3,0],
-            [1,4,0,4,4,0,3,3,1,0],
-            [0,0,0,4,4,0,2,4,1,2],
-            [0,1,4,2,1,1,4,2,2,2],
-            [0,1,2,3,1,4,3,4,0,0],
-            [1,0,4,2,2,0,1,2,1,2],
-            [0,1,0,2,3,0,3,2,2,0],
-            [3,0,0,4,0,2,4,4,2,4],
-            [1,3,1,4,1,3,4,4,0,1],
-            [0,2,0,1,2,3,2,3,1,0],
-            [1,2,0,3,3,3,3,4,1,1],
+            [2,0,0,3,4,1,4,3,1,1],[1,2,1,1,2,2,1,1,1,1],[2,3,2,3,4,1,2,2,0,2],
+            [0,1,1,3,3,1,3,4,3,1],[2,0,1,3,4,0,3,4,1,2],[0,3,2,3,2,1,3,3,3,1],
+            [2,1,2,3,4,0,4,2,0,1],[0,3,2,4,0,1,3,1,0,2],[1,2,1,2,4,3,2,0,1,1],
+            [2,4,1,4,3,2,1,2,0,1],[1,2,0,1,2,2,4,3,3,1],[1,1,0,4,2,1,3,3,0,4],
+            [3,0,0,3,4,4,2,3,3,1],[2,0,2,4,4,0,3,2,1,1],[0,0,3,3,3,2,4,0,2,3],
+            [0,2,0,2,3,0,3,4,2,1],[1,2,1,1,3,3,2,4,2,1],[2,0,3,4,4,0,1,1,1,1],
+            [1,0,0,4,3,3,0,3,3,1],[0,2,1,3,0,2,0,4,1,0],[1,0,2,4,4,1,1,3,2,0],
+            [2,1,1,4,3,1,1,2,3,0],[1,4,0,4,4,0,3,3,1,0],[0,0,0,4,4,0,2,4,1,2],
+            [0,1,4,2,1,1,4,2,2,2],[0,1,2,3,1,4,3,4,0,0],[1,0,4,2,2,0,1,2,1,2],
+            [0,1,0,2,3,0,3,2,2,0],[3,0,0,4,0,2,4,4,2,4],[1,3,1,4,1,3,4,4,0,1],
+            [0,2,0,1,2,3,2,3,1,0],[1,2,0,3,3,3,3,4,1,1],
         ];
 
-        DB::transaction(function () use ($users, $study, $qPss, $items, $pre, $post) {
+        // Helper: persiste respuestas (upsert) y score como hace tu controlador
+        $saveBlock = function (QuestionnaireAssignment $assignment, array $values) use ($items) {
+            $now = now();
+
+            // UPsert responses
+            $rows = [];
+            foreach ($items as $k => $item) {
+                $rows[] = [
+                    'assignment_id' => $assignment->id,
+                    'item_id'       => $item->id,
+                    'value'         => (int)($values[$k] ?? 0),
+                    'answered_at'   => ($assignment->assigned_at ? Carbon::parse($assignment->assigned_at) : $now)->copy()->addMinutes($k),
+                    'created_at'    => $now,
+                    'updated_at'    => $now,
+                ];
+            }
+
+            QuestionnaireResponse::upsert(
+                $rows,
+                ['assignment_id','item_id'],
+                ['value','answered_at','updated_at']
+            );
+
+            // Marcar completado si respondió todo
+            $totalItems = $items->count();
+            $answered   = QuestionnaireResponse::where('assignment_id', $assignment->id)->count();
+            if ($totalItems > 0 && $answered >= $totalItems && is_null($assignment->completed_at)) {
+                $assignment->completed_at = $now; // o deja el que ya tenga
+                $assignment->save();
+            }
+
+            // Score (crear/actualizar)
+            $responses = $assignment->responses()->with('item')->get();
+            $total = 0;
+            $details = [];
+            foreach ($responses as $response) {
+                $val = (int)$response->value;
+                $max = $response->item->scale_max ?? 4; // PSS: 0..4
+                $rev = (bool)($response->item->reverse_scored ?? false);
+                $scored = $rev ? ($max - $val) : $val;
+                $total += $scored;
+                $details[$response->item->id] = $scored;
+            }
+
+            // hasOne ->updateOrCreate() está scoping por assignment_id
+            $assignment->score()->updateOrCreate([], [
+                'score_total' => $total,
+                'score_json'  => $details,
+            ]);
+        };
+
+        DB::transaction(function () use ($users, $study, $qPss, $items, $pre, $post, $saveBlock) {
             foreach ($users->values() as $idx => $user) {
-                // Sesión (si existe) para capturar hora base
+                // Sesión del usuario para tiempos base
                 $session = VrSession::where('user_id', $user->id)->where('session_no', 1)->first();
                 $scheduledAt = $session?->scheduled_at
                     ? Carbon::parse($session->scheduled_at)
-                    : Carbon::now();
+                    : now();
 
-                // --- PRE ---
+                // Assignment PRE (asegurar created/assigned/completed)
                 $preAssignment = QuestionnaireAssignment::firstOrCreate(
                     [
                         'user_id'          => $user->id,
@@ -141,26 +142,12 @@ class Pss10ResponsesSeeder extends Seeder
                     [
                         'study_id'     => $study->id,
                         'assigned_at'  => $scheduledAt->copy(),
-                        // si ya existía con completed_at, no lo tocamos
                         'completed_at' => $scheduledAt->copy()->addMinutes(10),
                     ]
                 );
+                $saveBlock($preAssignment, $pre[$idx]);
 
-                // limpiar/rescribir respuestas actuales para asegurar consistencia
-                QuestionnaireResponse::where('assignment_id', $preAssignment->id)->delete();
-
-                foreach ($items as $k => $item) {
-                    $value = $pre[$idx][$k] ?? null;
-                    if ($value === null) continue;
-
-                    QuestionnaireResponse::create([
-                        'assignment_id' => $preAssignment->id,
-                        'item_id'       => $item->id,
-                        'value'         => $value,
-                    ]);
-                }
-
-                // --- POST ---
+                // Assignment POST
                 $postAssignment = QuestionnaireAssignment::firstOrCreate(
                     [
                         'user_id'          => $user->id,
@@ -174,19 +161,7 @@ class Pss10ResponsesSeeder extends Seeder
                         'completed_at' => $scheduledAt->copy()->addMinutes(30),
                     ]
                 );
-
-                QuestionnaireResponse::where('assignment_id', $postAssignment->id)->delete();
-
-                foreach ($items as $k => $item) {
-                    $value = $post[$idx][$k] ?? null;
-                    if ($value === null) continue;
-
-                    QuestionnaireResponse::create([
-                        'assignment_id' => $postAssignment->id,
-                        'item_id'       => $item->id,
-                        'value'         => $value,
-                    ]);
-                }
+                $saveBlock($postAssignment, $post[$idx]);
             }
         });
     }
