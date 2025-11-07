@@ -104,7 +104,7 @@ class VrSessionsAndAssignmentsSeeder extends Seeder
                         'environment_id'   => $env->id,
                         'sort_order'       => $order++,
                         'duration_minutes' => $seg['min'],
-                        'types'            => 'default',
+                        'type'            => 'default',
                     ]);
                 }
 
