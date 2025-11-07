@@ -151,7 +151,7 @@ class VrSessionsAndAssignmentsSeeder extends Seeder
                     [
                         'user_id'          => $user->id,
                         'questionnaire_id' => $qSatisfVideo->id,
-                        'context'          => 'post',
+                        'context'          => 'pre',
                         'session_id'       => $session->id,
                     ],
                     [
