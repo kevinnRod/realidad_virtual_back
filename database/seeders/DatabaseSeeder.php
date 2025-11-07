@@ -25,9 +25,12 @@ class DatabaseSeeder extends Seeder
             StudySeeder::class,
             DeviceSeeder::class,
             UserSeeder::class,
-            VrSessionSeeder::class,
+            // VrSessionSeeder::class,
             QuestionnaireSeeder::class,
-            QuestionnaireAssignmentSeeder::class,
+            VrSessionsAndAssignmentsSeeder::class,
+            //  RolesAndPermissionsSeeder::class,
+            //  QuestionnaireAssignmentSeeder::class,
+            // QuestionnaireAssignmentSeeder::class,
         ]);
     }
 }
