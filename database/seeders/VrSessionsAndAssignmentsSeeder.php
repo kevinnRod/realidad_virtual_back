@@ -91,8 +91,7 @@ class VrSessionsAndAssignmentsSeeder extends Seeder
                         'total_duration_minutes' => $totalMinutes,
                         'vr_app_version'         => '1.0.0',
                         'notes'                  => 'Sesión estándar (zen 5m + beach 3m + forest 3m)',
-                        'type'            => 'default',
-
+                        'type'                  => 'default',
                     ]
                 );
 
