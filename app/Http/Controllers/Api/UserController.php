@@ -176,5 +176,84 @@ public function destroy($id): JsonResponse
     ]);
 }
 
+/**
+ * Lista usuarios para filtros de analytics (endpoint público)
+ * GET /api/users/for-filters
+ */
+/**
+ * Lista usuarios para filtros de analytics (solo admin)
+ * GET /api/users/for-filters
+ */
+public function forFilters(Request $request)
+{
+    $query = User::query()
+        ->select('id', 'code', 'name', 'email', 'role')
+        ->whereNull('deleted_at');
+
+    // Opcional: Solo usuarios con sesiones VR
+    if ($request->has('with_sessions')) {
+        $query->whereHas('vrSessions');
+    }
+
+    $users = $query->orderBy('name')->get();
+
+    // Transformar para frontend
+    $users = $users->map(function($user) {
+        $displayLabel = $user->name;
+        
+        if (!$displayLabel || trim($displayLabel) === '') {
+            $displayLabel = $user->email;
+        }
+        
+        if (!$displayLabel || trim($displayLabel) === '') {
+            $displayLabel = $user->code;
+        }
+        
+        if (!$displayLabel || trim($displayLabel) === '') {
+            $displayLabel = "USER_" . str_pad($user->id, 4, '0', STR_PAD_LEFT);
+        }
+
+        return [
+            'id' => $user->id,
+            'code' => $user->code,
+            'name' => $user->name,
+            'email' => $user->email,
+            'role' => $user->role,
+            'display_label' => $displayLabel
+        ];
+    });
+
+    return response()->json($users);
+}
+
+/**
+ * Lista solo usuarios que tienen sesiones VR
+ * GET /api/users/with-sessions
+ */
+public function withSessions(Request $request)
+{
+    $users = User::query()
+        ->select('users.id', 'users.code', 'users.name', 'users.email', 'users.role')
+        ->join('vr_sessions', 'users.id', '=', 'vr_sessions.user_id')
+        ->whereNull('users.deleted_at')
+        ->distinct()
+        ->orderBy('users.name')
+        ->get();
+
+    $users = $users->map(function($user) {
+        $displayLabel = $user->name ?: ($user->email ?: ($user->code ?: "USER_" . str_pad($user->id, 4, '0', STR_PAD_LEFT)));
+
+        return [
+            'id' => $user->id,
+            'code' => $user->code,
+            'name' => $user->name,
+            'email' => $user->email,
+            'role' => $user->role,
+            'display_label' => $displayLabel
+        ];
+    });
+
+    return response()->json($users);
+}
 
 }

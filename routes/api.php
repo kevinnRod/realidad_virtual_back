@@ -44,8 +44,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('logout', [AuthController::class, 'logout']);
     // Route::get('/user', fn (Request $request) => $request->user());
 
-
     Route::middleware('admin')->group(function () {
+            Route::get('/users/for-filters', [UserController::class, 'forFilters']);
+            Route::get('/users/with-sessions', [UserController::class, 'withSessions']);
+
             Route::apiResource('users', UserController::class)->only(['index', 'store', 'show', 'update', 'destroy']);
         });
     Route::post('vr/generate-code', [VrAuthController::class, 'generateCode']);

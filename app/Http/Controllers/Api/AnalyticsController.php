@@ -23,12 +23,16 @@ public function summary(Request $request)
         'end_date' => 'nullable|date',
         'cohort_id' => 'nullable|integer|exists:studies,id',
         'study_type' => 'nullable|integer|exists:studies,id', // ✅ NUEVO
+        'user_id' => 'nullable|integer|exists:users,id',        // ✅ NUEVO
+            'device_id' => 'nullable|integer|exists:devices,id', 
     ]);
 
     $startDate = $validated['start_date'] ?? Carbon::now()->subDays(30)->toDateString();
     $endDate = $validated['end_date'] ?? Carbon::now()->toDateString();
     $cohortId = $validated['cohort_id'] ?? null;
     $studyType = $validated['study_type'] ?? null; // ✅ NUEVO
+    $userId = $validated['user_id'] ?? null;          // ✅ NUEVO
+    $deviceId = $validated['device_id'] ?? null;      // ✅ NUEVO
 
     // ─── 1. N Sesiones ───────────────────────────────────
     $sessionsQuery = DB::table('vr_sessions')
@@ -46,6 +50,16 @@ public function summary(Request $request)
     if ($studyType) {
         $sessionsQuery->where('study_id', $studyType);
     }
+
+    // ✅ NUEVO: Filtro por usuario específico
+        if ($userId) {
+            $sessionsQuery->where('user_id', $userId);
+        }
+
+    // ✅ NUEVO: Filtro por dispositivo específico
+        if ($deviceId) {
+            $sessionsQuery->where('device_id', $deviceId);
+        }
 
     $totalSessions = $sessionsQuery->count();
 
@@ -67,6 +81,8 @@ public function summary(Request $request)
             'end_date' => $endDate,
             'cohort_id' => $cohortId,
             'study_type' => $studyType, // ✅ NUEVO
+            'user_id' => $userId,        // ✅ NUEVO
+            'device_id' => $deviceId,    // ✅ NUEVO
         ],
         'summary' => [
             'total_sessions' => $totalSessions,
@@ -86,8 +102,8 @@ public function summary(Request $request)
  */
 
 /** Satisfacción (VR vs Video) usando codes: satisf (VR) y satisf_video (Video) */
-private function calculateSatisfactionDeltas($startDate, $endDate, $cohortId, $studyType = null)
-{
+    private function calculateSatisfactionDeltas($startDate, $endDate, $cohortId, $studyType = null, $userId = null, $deviceId = null)
+    {
     $base = DB::table('questionnaire_scores as qs')
         ->join('questionnaire_assignments as qa', 'qs.assignment_id', '=', 'qa.id')
         ->join('questionnaires as q', 'qa.questionnaire_id', '=', 'q.id')
@@ -104,6 +120,22 @@ private function calculateSatisfactionDeltas($startDate, $endDate, $cohortId, $s
     if ($studyType) {
         $base->where('vs.study_id', $studyType);
     }
+
+    if ($userId) {
+            $base->where('qa.user_id', $userId);
+    }
+
+    if ($deviceId) {
+            $base->where('vs.device_id', $deviceId);
+    }
+
+    if ($userId) {
+            $base->where('qa.user_id', $userId);
+        }
+
+        if ($deviceId) {
+            $base->where('vs.device_id', $deviceId);
+        }
 
     $vrAvg    = (clone $base)->where('q.code', 'satisf')->avg('qs.score_total');          // VR
     $videoAvg = (clone $base)->where('q.code', 'satisf_video')->avg('qs.score_total');    // Video
@@ -128,7 +160,7 @@ private function calculateSatisfactionDeltas($startDate, $endDate, $cohortId, $s
 }
 
 /** Presión arterial: intenta (1) cuestionarios BP si existen; si no, (2) tabla de vitales; si no, null */
-private function calculateBloodPressureDeltas($startDate, $endDate, $cohortId, $studyType = null)
+private function calculateBloodPressureDeltas($startDate, $endDate, $cohortId, $studyType = null, $userId = null, $deviceId = null)
 {
     // Si no existe la tabla vitals, mantener el comportamiento anterior
     if (!Schema::hasTable('vitals')) {
@@ -154,6 +186,14 @@ private function calculateBloodPressureDeltas($startDate, $endDate, $cohortId, $
     if ($studyType) {
         $base->where('s.study_id', $studyType); // ✅ corregido alias
     }
+
+    if ($userId) {
+            $base->where('s.user_id', $userId);
+        }
+
+        if ($deviceId) {
+            $base->where('s.device_id', $deviceId);
+        }
 
     // (Opcional) sólo mediciones sentadas; si quieres ambas, elimina este where
     $base = $base->where(function ($w) {
@@ -389,7 +429,7 @@ private function detectSessionModeColumn(): ?array
 
     /** PSS-10 (pre/post/delta) - usa code=pss10 */
 // Ejemplo en calculatePssDeltas:
-private function calculatePssDeltas($startDate, $endDate, $cohortId, $studyType = null)
+private function calculatePssDeltas($startDate, $endDate, $cohortId, $studyType = null, $userId = null, $deviceId = null)
 {
     $query = DB::table('questionnaire_scores as qs')
         ->join('questionnaire_assignments as qa', 'qs.assignment_id', '=', 'qa.id')
@@ -409,6 +449,15 @@ private function calculatePssDeltas($startDate, $endDate, $cohortId, $studyType 
     if ($studyType) {
         $query->where('vs.study_id', $studyType);
     }
+
+    // ✅ NUEVO: Filtros adicionales
+        if ($userId) {
+            $query->where('qa.user_id', $userId);
+        }
+
+        if ($deviceId) {
+            $query->where('vs.device_id', $deviceId);
+        }
 
     $pre  = (clone $query)->where('qa.context', 'pre')->avg('qs.score_total');
     $post = (clone $query)->where('qa.context', 'post')->avg('qs.score_total');
@@ -450,7 +499,7 @@ private function calculatePssDeltas($startDate, $endDate, $cohortId, $studyType 
         ];
     }
 
-private function calculateCsatPercentage($startDate, $endDate, $cohortId, $studyType = null)
+private function calculateCsatPercentage($startDate, $endDate, $cohortId, $studyType = null, $userId = null, $deviceId = null)
 {
     // Respuestas del cuestionario de satisfacción VR
     $base = DB::table('questionnaire_responses as r')
@@ -471,7 +520,14 @@ private function calculateCsatPercentage($startDate, $endDate, $cohortId, $study
         $base->where('vs.study_id', $studyType);
     }
 
+// ✅ NUEVO: Filtros adicionales
+        if ($userId) {
+            $base->where('qa.user_id', $userId);
+        }
 
+        if ($deviceId) {
+            $base->where('vs.device_id', $deviceId);
+        }
 
     // Promedio por asignación (agrupamos y alias del agregado)
     $perAssignment = (clone $base)
@@ -501,6 +557,9 @@ private function calculateCsatPercentage($startDate, $endDate, $cohortId, $study
             'start_date' => 'nullable|date',
             'end_date' => 'nullable|date',
             'cohort_id' => 'nullable|integer|exists:studies,id',
+            'study_type' => 'nullable|integer|exists:studies,id',
+            'user_id' => 'nullable|integer|exists:users,id',        // ✅ NUEVO
+            'device_id' => 'nullable|integer|exists:devices,id',    // ✅ NUEVO
         ]);
 
         $data = $this->getExportData($validated);
@@ -575,6 +634,9 @@ private function calculateCsatPercentage($startDate, $endDate, $cohortId, $study
             'start_date' => 'nullable|date',
             'end_date' => 'nullable|date',
             'cohort_id' => 'nullable|integer|exists:studies,id',
+            'study_type' => 'nullable|integer|exists:studies,id',
+            'user_id' => 'nullable|integer|exists:users,id',        // ✅ NUEVO
+            'device_id' => 'nullable|integer|exists:devices,id',    // ✅ NUEVO
         ]);
 
         $data = $this->getExportData($validated);
@@ -616,6 +678,8 @@ private function calculateCsatPercentage($startDate, $endDate, $cohortId, $study
     $endDate = $filters['end_date'] ?? Carbon::now()->toDateString();
     $cohortId = $filters['cohort_id'] ?? null;
     $studyType = $filters['study_type'] ?? null; // ✅ NUEVO
+    $userId = $filters['user_id'] ?? null;          // ✅ NUEVO
+        $deviceId = $filters['device_id'] ?? null;      // ✅ NUEVO
 
     $query = DB::table('vr_sessions as vs')
         ->join('users as u', 'vs.user_id', '=', 'u.id')
@@ -699,6 +763,15 @@ private function calculateCsatPercentage($startDate, $endDate, $cohortId, $study
     if ($studyType) {
         $query->where('vs.study_id', $studyType);
     }
+
+     // ✅ NUEVO: Filtros adicionales
+        if ($userId) {
+            $query->where('vs.user_id', $userId);
+        }
+
+        if ($deviceId) {
+            $query->where('vs.device_id', $deviceId);
+        }
 
     return $query->get()->map(fn($row) => (array) $row)->toArray();
 
