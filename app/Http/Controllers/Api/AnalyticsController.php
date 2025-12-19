@@ -776,4 +776,218 @@ private function calculateCsatPercentage($startDate, $endDate, $cohortId, $study
     return $query->get()->map(fn($row) => (array) $row)->toArray();
 
 }
+
+/**
+ * Evolución temporal de métricas para gráficos
+ * GET /api/analytics/evolution?start_date=2025-01-01&end_date=2025-12-31
+ */
+public function evolution(Request $request)
+{
+    $validated = $request->validate([
+        'start_date' => 'nullable|date',
+        'end_date' => 'nullable|date',
+        'cohort_id' => 'nullable|integer|exists:studies,id',
+        'study_type' => 'nullable|integer|exists:studies,id',
+        'user_id' => 'nullable|integer|exists:users,id',
+        'device_id' => 'nullable|integer|exists:devices,id',
+        'interval' => 'nullable|in:day,week,month', // Granularidad
+    ]);
+
+    $startDate = $validated['start_date'] ?? Carbon::now()->subDays(30)->toDateString();
+    $endDate = $validated['end_date'] ?? Carbon::now()->toDateString();
+    $cohortId = $validated['cohort_id'] ?? null;
+    $studyType = $validated['study_type'] ?? null;
+    $userId = $validated['user_id'] ?? null;
+    $deviceId = $validated['device_id'] ?? null;
+    $interval = $validated['interval'] ?? 'week';
+
+    // Determinar formato de agrupación según intervalo
+    $dateFormat = match($interval) {
+        'day' => '%Y-%m-%d',
+        'week' => '%Y-%u', // Año-semana
+        'month' => '%Y-%m',
+        default => '%Y-%u'
+    };
+
+    return response()->json([
+        'pss_evolution' => $this->getPssEvolution($startDate, $endDate, $cohortId, $studyType, $userId, $deviceId, $dateFormat),
+        'satisfaction_evolution' => $this->getSatisfactionEvolution($startDate, $endDate, $cohortId, $studyType, $userId, $deviceId, $dateFormat),
+        'bp_evolution' => $this->getBloodPressureEvolution($startDate, $endDate, $cohortId, $studyType, $userId, $deviceId, $dateFormat),
+    ]);
+}
+
+/**
+ * Evolución PSS-10 agrupada por fecha
+ */
+private function getPssEvolution($startDate, $endDate, $cohortId, $studyType, $userId, $deviceId, $dateFormat)
+{
+    $query = DB::table('questionnaire_scores as qs')
+        ->join('questionnaire_assignments as qa', 'qs.assignment_id', '=', 'qa.id')
+        ->join('questionnaires as q', 'qa.questionnaire_id', '=', 'q.id')
+        ->join('vr_sessions as vs', 'qa.session_id', '=', 'vs.id')
+        ->where('q.code', 'pss10')
+        ->whereBetween('qa.created_at', [$startDate, $endDate])
+        ->whereNotNull('qa.completed_at');
+
+    $this->applyFilters($query, $cohortId, $studyType, $userId, $deviceId);
+
+    $pre = (clone $query)
+        ->where('qa.context', 'pre')
+        ->select(
+            DB::raw("DATE_FORMAT(qa.created_at, '{$dateFormat}') as date_group"),
+            DB::raw('DATE(MIN(qa.created_at)) as date'),
+            DB::raw('AVG(qs.score_total) as pre_mean')
+        )
+        ->groupBy('date_group')
+        ->get()
+        ->keyBy('date_group');
+
+    $post = (clone $query)
+        ->where('qa.context', 'post')
+        ->select(
+            DB::raw("DATE_FORMAT(qa.created_at, '{$dateFormat}') as date_group"),
+            DB::raw('AVG(qs.score_total) as post_mean')
+        )
+        ->groupBy('date_group')
+        ->get()
+        ->keyBy('date_group');
+
+    $combined = [];
+    foreach ($pre as $key => $preRow) {
+        $combined[] = [
+            'date' => $preRow->date,
+            'pre_mean' => round($preRow->pre_mean, 2),
+            'post_mean' => isset($post[$key]) ? round($post[$key]->post_mean, 2) : null,
+        ];
+    }
+
+    return $combined;
+}
+
+/**
+ * Evolución de satisfacción (Video vs VR)
+ */
+private function getSatisfactionEvolution($startDate, $endDate, $cohortId, $studyType, $userId, $deviceId, $dateFormat)
+{
+    $query = DB::table('questionnaire_scores as qs')
+        ->join('questionnaire_assignments as qa', 'qs.assignment_id', '=', 'qa.id')
+        ->join('questionnaires as q', 'qa.questionnaire_id', '=', 'q.id')
+        ->join('vr_sessions as vs', 'qa.session_id', '=', 'vs.id')
+        ->whereIn('q.code', ['satisf', 'satisf_video'])
+        ->whereBetween('qa.created_at', [$startDate, $endDate])
+        ->whereNotNull('qa.completed_at');
+
+    $this->applyFilters($query, $cohortId, $studyType, $userId, $deviceId);
+
+    $video = (clone $query)
+        ->where('q.code', 'satisf_video')
+        ->select(
+            DB::raw("DATE_FORMAT(qa.created_at, '{$dateFormat}') as date_group"),
+            DB::raw('DATE(MIN(qa.created_at)) as date'),
+            DB::raw('AVG(qs.score_total) as video_mean')
+        )
+        ->groupBy('date_group')
+        ->get()
+        ->keyBy('date_group');
+
+    $vr = (clone $query)
+        ->where('q.code', 'satisf')
+        ->select(
+            DB::raw("DATE_FORMAT(qa.created_at, '{$dateFormat}') as date_group"),
+            DB::raw('AVG(qs.score_total) as vr_mean')
+        )
+        ->groupBy('date_group')
+        ->get()
+        ->keyBy('date_group');
+
+    $combined = [];
+    foreach ($video as $key => $videoRow) {
+        $combined[] = [
+            'date' => $videoRow->date,
+            'video_mean' => round($videoRow->video_mean, 2),
+            'vr_mean' => isset($vr[$key]) ? round($vr[$key]->vr_mean, 2) : null,
+        ];
+    }
+
+    return $combined;
+}
+
+/**
+ * Evolución de presión arterial
+ */
+private function getBloodPressureEvolution($startDate, $endDate, $cohortId, $studyType, $userId, $deviceId, $dateFormat)
+{
+    if (!Schema::hasTable('vitals')) {
+        return [];
+    }
+
+    $query = DB::table('vitals as vt')
+        ->join('vr_sessions as s', 'vt.session_id', '=', 's.id')
+        ->whereBetween('s.created_at', [$startDate, $endDate]);
+
+    $this->applyFilters($query, $cohortId, $studyType, $userId, $deviceId, 's');
+
+    $pre = (clone $query)
+        ->where('vt.phase', 'pre')
+        ->select(
+            DB::raw("DATE_FORMAT(s.created_at, '{$dateFormat}') as date_group"),
+            DB::raw('DATE(MIN(s.created_at)) as date'),
+            DB::raw('AVG(vt.bp_sys) as systolic_pre'),
+            DB::raw('AVG(vt.bp_dia) as diastolic_pre')
+        )
+        ->groupBy('date_group')
+        ->get()
+        ->keyBy('date_group');
+
+    $post = (clone $query)
+        ->where('vt.phase', 'post')
+        ->select(
+            DB::raw("DATE_FORMAT(s.created_at, '{$dateFormat}') as date_group"),
+            DB::raw('AVG(vt.bp_sys) as systolic_post'),
+            DB::raw('AVG(vt.bp_dia) as diastolic_post')
+        )
+        ->groupBy('date_group')
+        ->get()
+        ->keyBy('date_group');
+
+    $combined = [];
+    foreach ($pre as $key => $preRow) {
+        $combined[] = [
+            'date' => $preRow->date,
+            'systolic_pre' => $preRow->systolic_pre ? round($preRow->systolic_pre, 2) : null,
+            'systolic_post' => isset($post[$key]) && $post[$key]->systolic_post ? round($post[$key]->systolic_post, 2) : null,
+            'diastolic_pre' => $preRow->diastolic_pre ? round($preRow->diastolic_pre, 2) : null,
+            'diastolic_post' => isset($post[$key]) && $post[$key]->diastolic_post ? round($post[$key]->diastolic_post, 2) : null,
+        ];
+    }
+
+    return $combined;
+}
+
+/**
+ * Helper para aplicar filtros comunes
+ */
+private function applyFilters($query, $cohortId, $studyType, $userId, $deviceId, $sessionAlias = 'vs')
+{
+    if ($cohortId) {
+        $query->whereIn("{$sessionAlias}.user_id", function($q) use ($cohortId) {
+            $q->select('user_id')->from('study_enrollments')->where('study_id', $cohortId);
+        });
+    }
+
+    if ($studyType) {
+        $query->where("{$sessionAlias}.study_id", $studyType);
+    }
+
+    if ($userId) {
+        $query->where("{$sessionAlias}.user_id", $userId);
+    }
+
+    if ($deviceId) {
+        $query->where("{$sessionAlias}.device_id", $deviceId);
+    }
+
+    return $query;
+}
+
 }

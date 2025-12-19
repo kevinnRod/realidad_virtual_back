@@ -124,7 +124,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::prefix('analytics')->middleware('admin')->group(function () {
         // HU18: Resumen de resultados
         Route::get('/summary', [AnalyticsController::class, 'summary']);
-        
+        Route::get('/evolution', [AnalyticsController::class, 'evolution']);
+
         // HU19: Exportar datos
         Route::get('/export/csv', [AnalyticsController::class, 'exportCsv']);
         Route::get('/export/json', [AnalyticsController::class, 'exportJson']);
